@@ -252,6 +252,7 @@ if page == "Prospection":
                             c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (statut, now, pid))
                         conn.commit()
                     st.success(f"Statut '{statut}' appliqué à la sélection.")
+                    st.session_state['selection'] = set()
                     st.experimental_rerun()
 
         # --- Affichage des détails dans un panneau latéral ---
@@ -267,6 +268,17 @@ if page == "Prospection":
             st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + detail_row['link'] + ')' if detail_row['link'] else 'Non dispo'}")
             st.sidebar.markdown(f"**Avis :** {detail_row['reviews']} | **Note :** {detail_row['rating']}")
             st.sidebar.markdown(f"**Statut appel :** {detail_row['statut_appel'] if detail_row['statut_appel'] else 'Non renseigné'}")
+            st.sidebar.markdown("**Changer le statut d'appel individuellement :**")
+            for statut in STATUTS:
+                if st.sidebar.button(statut, key=f"statut_indiv_{statut}_{detail_row['place_id']}"):
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (statut, now, detail_row['place_id']))
+                        conn.commit()
+                    st.success(f"Statut '{statut}' appliqué à {detail_row['name']}.")
+                    st.session_state['show_details'] = None
+                    st.experimental_rerun()
             if st.sidebar.button("Fermer", key="close_details"):
                 st.session_state['show_details'] = None
 
