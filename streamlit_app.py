@@ -166,13 +166,6 @@ if page == "Prospection":
     with col5:
         filtre_statut = st.selectbox("Filtrer par statut d'appel", ["Tous"] + STATUTS)
     
-    # Boutons appelés/non appelés
-    colA, colB = st.columns(2)
-    with colA:
-        voir_appeles = st.button("Voir appelés")
-    with colB:
-        voir_non_appeles = st.button("Voir non appelés")
-    
     # Récupération des prospects
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.read_sql_query("SELECT * FROM prospects", conn)
@@ -187,54 +180,84 @@ if page == "Prospection":
         df = df[df['address'].str.contains(filtre_adr, case=False, na=False)]
     if filtre_statut != "Tous":
         df = df[df['statut_appel'] == filtre_statut]
-    if voir_appeles:
-        df = df[df['statut_appel'].isin([s for s in STATUTS if s != ""])]
-    if voir_non_appeles:
-        df = df[df['statut_appel'].isnull() | (df['statut_appel'] == "")]
-    
-    # Suppression multiple
+
+    # --- Sélection multiple ---
     st.write("")
-    st.subheader("Sélection et suppression")
-    if not df.empty:
-        selection = st.multiselect(
-            "Sélectionner les prospects à supprimer :",
-            options=df['place_id'],
-            format_func=lambda x: df[df['place_id'] == x]['name'].values[0]
-        )
+    st.subheader("Tableau des prospects")
+    if df.empty:
+        st.info("Aucun prospect trouvé.")
+    else:
+        # Ajout d'une colonne de sélection
+        selection = st.session_state.get('selection', set())
+        if not isinstance(selection, set):
+            selection = set()
+        all_ids = df['place_id'].tolist()
+        col_select, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
+        with col_select:
+            select_all = st.checkbox("Tout sélectionner", value=len(selection)==len(all_ids), key="select_all")
+            if select_all:
+                selection = set(all_ids)
+            else:
+                selection = set()
+        # Affichage des lignes
+        for i, row in df.iterrows():
+            cols = st.columns([1,3,2,3,2,2])
+            with cols[0]:
+                checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
+                if checked:
+                    selection.add(row['place_id'])
+                else:
+                    selection.discard(row['place_id'])
+            with cols[1]:
+                st.write(row['name'])
+            with cols[2]:
+                st.write(row['main_category'])
+            with cols[3]:
+                st.write(row['address'])
+            with cols[4]:
+                st.write(row['phone'])
+            with cols[5]:
+                if st.button("Détails", key=f"details_{row['place_id']}"):
+                    st.session_state['show_details'] = row['place_id']
+        st.session_state['selection'] = selection
+
+        # --- Panneau d'action à droite ---
         if selection:
-            if st.button("Supprimer la sélection", type="primary"):
+            st.sidebar.subheader("Actions sur la sélection")
+            if st.sidebar.button("Supprimer la sélection", type="primary"):
                 with sqlite3.connect(DB_PATH) as conn:
                     c = conn.cursor()
                     c.executemany("DELETE FROM prospects WHERE place_id=?", [(pid,) for pid in selection])
                     conn.commit()
                 st.success(f"{len(selection)} prospect(s) supprimé(s).")
+                st.session_state['selection'] = set()
                 st.experimental_rerun()
-    
-    # Affichage du tableau avec clic pour modifier le statut
-    if df.empty:
-        st.info("Aucun prospect trouvé.")
-    else:
-        st.write("")
-        st.subheader("Tableau des prospects")
-        for idx, row in df.iterrows():
-            with st.expander(f"{row['name']} | {row['phone']} | {row['address']}"):
-                st.markdown(f"**Catégorie :** {row['main_category']}")
-                st.markdown(f"**Site web :** {'[Site](' + row['website'] + ')' if row['website'] else 'Non dispo'}")
-                st.markdown(f"**Email :** {'[Email](mailto:' + row['emails'] + ')' if row['emails'] else 'Non dispo'}")
-                st.markdown(f"**Lien Google Maps :** {'[Maps](' + row['link'] + ')' if row['link'] else 'Non dispo'}")
-                st.markdown(f"**Avis :** {row['reviews']} | **Note :** {row['rating']}")
-                st.markdown(f"**Statut appel actuel :** {row['statut_appel'] if row['statut_appel'] else 'Non renseigné'}")
-                new_statut = st.selectbox(
-                    "Changer le statut d'appel :",
-                    [row['statut_appel']] + [s for s in STATUTS if s != row['statut_appel']],
-                    key=f"statut_{row['place_id']}"
-                )
-                if new_statut != row['statut_appel'] and st.button("Enregistrer le nouveau statut", key=f"save_{row['place_id']}"):
+            st.sidebar.markdown("**Changer le statut d'appel :**")
+            for statut in STATUTS:
+                if st.sidebar.button(statut, key=f"statut_bulk_{statut}"):
                     with sqlite3.connect(DB_PATH) as conn:
                         c = conn.cursor()
-                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (new_statut, datetime.now().strftime("%Y-%m-%d %H:%M"), row['place_id']))
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        for pid in selection:
+                            c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (statut, now, pid))
                         conn.commit()
-                    st.success("Statut mis à jour !")
+                    st.success(f"Statut '{statut}' appliqué à la sélection.")
                     st.experimental_rerun()
+
+        # --- Affichage des détails dans un panneau latéral ---
+        show_details = st.session_state.get('show_details', None)
+        if show_details:
+            detail_row = df[df['place_id'] == show_details].iloc[0]
+            st.sidebar.subheader(f"Détails pour {detail_row['name']}")
+            st.sidebar.markdown(f"**Catégorie :** {detail_row['main_category']}")
+            st.sidebar.markdown(f"**Adresse :** {detail_row['address']}")
+            st.sidebar.markdown(f"**Téléphone :** {detail_row['phone']}")
+            st.sidebar.markdown(f"**Site web :** {'[Site](' + detail_row['website'] + ')' if detail_row['website'] else 'Non dispo'}")
+            st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + detail_row['emails'] + ')' if detail_row['emails'] else 'Non dispo'}")
+            st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + detail_row['link'] + ')' if detail_row['link'] else 'Non dispo'}")
+            st.sidebar.markdown(f"**Avis :** {detail_row['reviews']} | **Note :** {detail_row['rating']}")
+            st.sidebar.markdown(f"**Statut appel :** {detail_row['statut_appel'] if detail_row['statut_appel'] else 'Non renseigné'}")
+            if st.sidebar.button("Fermer", key="close_details"):
+                st.session_state['show_details'] = None
 
 # ... le reste du code (autres pages) ...
