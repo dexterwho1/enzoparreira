@@ -76,11 +76,14 @@ if file:
         nom = str(row.get("name", "")).strip()
         tel = str(row.get("phone", "")).strip()
         adresse = str(row.get("address", "")).strip()
+        # Filtre numéro FR mobile
+        tel_clean = tel.replace(" ", "").replace("-", "")
         if not (nom and tel and adresse):
             erreurs.append(f"Ligne {idx+2} ignorée : nom/téléphone/adresse manquant.")
             continue
-        # Normalisation du téléphone (optionnel)
-        # tel = tel.replace(" ", "").replace("-", "")
+        if not (tel_clean.startswith("06") or tel_clean.startswith("07") or tel_clean.startswith("+336") or tel_clean.startswith("+337")):
+            erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
+            continue
         # Gestion du doublon : on met à jour si place_id existe déjà
         place_id = str(row.get("place_id", "")).strip()
         with sqlite3.connect(DB_PATH) as conn:
@@ -231,43 +234,84 @@ if page == "Prospection":
         if filtre_rapide != "Tous":
             df_affiche = df_affiche[df_affiche['statut_appel'] == filtre_rapide]
         # Affichage du tableau avec colonnes dédiées
-        col_sel, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
-        with col_sel:
-            st.markdown("**Sélectionner**")
-        with col_nom:
-            st.markdown("**Nom**")
-        with col_cat:
-            st.markdown("**Catégorie**")
-        with col_adr:
-            st.markdown("**Adresse**")
-        with col_tel:
-            st.markdown("**Téléphone**")
-        with col_details:
-            st.markdown("**Détails**")
-        for i, row in df_affiche.iterrows():
-            cols = st.columns([1,3,2,3,2,2])
-            with cols[0]:
-                checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
-                if checked:
-                    selection.add(row['place_id'])
-                else:
-                    selection.discard(row['place_id'])
-            # --- Clic sur la ligne pour transférer en client ---
-            transfer_key = f"transfer_{row['place_id']}"
-            with cols[1]:
-                if st.button(row['name'], key=transfer_key):
-                    st.session_state['show_transfer'] = row['place_id']
-                else:
-                    st.write(row['name'])
-            with cols[2]:
-                st.write(row['main_category'])
-            with cols[3]:
-                st.write(row['address'])
-            with cols[4]:
-                st.write(row['phone'])
-            with cols[5]:
-                if st.button("Détails", key=f"details_{row['place_id']}"):
-                    st.session_state['show_details'] = row['place_id']
+        if filtre_rapide != "Tous":
+            col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details = st.columns([1,3,2,3,2,2,2])
+            with col_sel:
+                st.markdown("**Sélectionner**")
+            with col_nom:
+                st.markdown("**Nom**")
+            with col_cat:
+                st.markdown("**Catégorie**")
+            with col_adr:
+                st.markdown("**Adresse**")
+            with col_tel:
+                st.markdown("**Téléphone**")
+            with col_date:
+                st.markdown("**Date action**")
+            with col_details:
+                st.markdown("**Détails**")
+            for i, row in df_affiche.iterrows():
+                cols = st.columns([1,3,2,3,2,2,2])
+                with cols[0]:
+                    checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
+                    if checked:
+                        selection.add(row['place_id'])
+                    else:
+                        selection.discard(row['place_id'])
+                transfer_key = f"transfer_{row['place_id']}"
+                with cols[1]:
+                    if st.button(row['name'], key=transfer_key):
+                        st.session_state['show_transfer'] = row['place_id']
+                    else:
+                        st.write(row['name'])
+                with cols[2]:
+                    st.write(row['main_category'])
+                with cols[3]:
+                    st.write(row['address'])
+                with cols[4]:
+                    st.write(row['phone'])
+                with cols[5]:
+                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+                with cols[6]:
+                    if st.button("Détails", key=f"details_{row['place_id']}"):
+                        st.session_state['show_details'] = row['place_id']
+        else:
+            col_sel, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
+            with col_sel:
+                st.markdown("**Sélectionner**")
+            with col_nom:
+                st.markdown("**Nom**")
+            with col_cat:
+                st.markdown("**Catégorie**")
+            with col_adr:
+                st.markdown("**Adresse**")
+            with col_tel:
+                st.markdown("**Téléphone**")
+            with col_details:
+                st.markdown("**Détails**")
+            for i, row in df_affiche.iterrows():
+                cols = st.columns([1,3,2,3,2,2])
+                with cols[0]:
+                    checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
+                    if checked:
+                        selection.add(row['place_id'])
+                    else:
+                        selection.discard(row['place_id'])
+                transfer_key = f"transfer_{row['place_id']}"
+                with cols[1]:
+                    if st.button(row['name'], key=transfer_key):
+                        st.session_state['show_transfer'] = row['place_id']
+                    else:
+                        st.write(row['name'])
+                with cols[2]:
+                    st.write(row['main_category'])
+                with cols[3]:
+                    st.write(row['address'])
+                with cols[4]:
+                    st.write(row['phone'])
+                with cols[5]:
+                    if st.button("Détails", key=f"details_{row['place_id']}"):
+                        st.session_state['show_details'] = row['place_id']
         st.session_state['selection'] = selection
 
         # --- Panneau d'action à droite pour bulk ---
