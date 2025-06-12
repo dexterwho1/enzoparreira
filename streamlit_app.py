@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import os
 from datetime import datetime
+import hashlib
 
 # --- Initialisation de la base de données ---
 DB_PATH = "crm_data.db"
@@ -151,7 +152,36 @@ if page == "Prospection":
     .css-1aumxhk, .css-1v0mbdj, .css-1d391kg {background-color: #222 !important; color: #fff !important;}
     </style>
     """, unsafe_allow_html=True)
-    
+
+    # --- Formulaire d'ajout manuel de prospect ---
+    st.header("Ajouter un prospect manuellement")
+    with st.form("ajout_prospect_form"):
+        lien = st.text_input("Lien Google Maps de la fiche *", "")
+        nom = st.text_input("Nom *", "")
+        categorie = st.text_input("Catégorie *", "")
+        telephone = st.text_input("Téléphone *", "")
+        submitted = st.form_submit_button("Ajouter")
+        if submitted:
+            if not (lien and nom and categorie and telephone):
+                st.error("Merci de remplir tous les champs obligatoires.")
+            else:
+                # Générer un place_id simple à partir du lien (hash ou partie unique)
+                place_id = hashlib.md5(lien.encode()).hexdigest()
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM prospects WHERE place_id=? OR phone=?", (place_id, telephone))
+                    exists = c.fetchone()
+                    if exists:
+                        st.error("Ce prospect existe déjà (même lien ou même téléphone).")
+                    else:
+                        c.execute("""
+                            INSERT INTO prospects (place_id, name, main_category, phone, link)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (place_id, nom, categorie, telephone, lien))
+                        conn.commit()
+                        st.success("Prospect ajouté avec succès !")
+                        st.experimental_rerun()
+
     st.header("Liste des prospects")
     # Filtres principaux (hors statut d'appel)
     col1, col2, col3, col4 = st.columns(4)
