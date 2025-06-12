@@ -153,8 +153,8 @@ if page == "Prospection":
     """, unsafe_allow_html=True)
     
     st.header("Liste des prospects")
-    # Filtres
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Filtres principaux (hors statut d'appel)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         filtre_nom = st.text_input("Rechercher par nom...")
     with col2:
@@ -163,8 +163,6 @@ if page == "Prospection":
         filtre_cat = st.text_input("Rechercher par catégorie...")
     with col4:
         filtre_adr = st.text_input("Rechercher par adresse...")
-    with col5:
-        filtre_statut = st.selectbox("Filtrer par statut d'appel", ["Tous"] + STATUTS)
     
     # Récupération des prospects
     with sqlite3.connect(DB_PATH) as conn:
@@ -178,28 +176,34 @@ if page == "Prospection":
         df = df[df['main_category'].str.contains(filtre_cat, case=False, na=False)]
     if filtre_adr:
         df = df[df['address'].str.contains(filtre_adr, case=False, na=False)]
-    if filtre_statut != "Tous":
-        df = df[df['statut_appel'] == filtre_statut]
 
     st.write("")
     st.subheader("Tableau des prospects")
     if df.empty:
         st.info("Aucun prospect trouvé.")
     else:
-        # Gestion de la sélection multiple
+        # --- Sélection bulk ---
         selection = st.session_state.get('selection', set())
         if not isinstance(selection, set):
             selection = set()
         all_ids = df['place_id'].tolist()
         # Affichage de la case 'Tout sélectionner' au-dessus du tableau
-        select_all = st.checkbox("Tout sélectionner", value=len(selection)==len(all_ids) and len(all_ids)>0, key="select_all_checkbox")
-        # Mise à jour de la sélection si on coche/décoche 'Tout sélectionner'
+        select_all = st.checkbox("Tout sélectionner pour bulk", value=len(selection)==len(all_ids) and len(all_ids)>0, key="select_all_checkbox")
         if select_all and len(selection) != len(all_ids):
             selection = set(all_ids)
         elif not select_all and len(selection) == len(all_ids):
             selection = set()
-        # Affichage du tableau
-        col_nom, col_cat, col_adr, col_tel, col_details = st.columns([3,2,3,2,2])
+        # --- Filtre d'appel rapide (menu à droite) ---
+        st.write("")
+        st.markdown("**Filtrer par statut d'appel (rapide) :**")
+        filtre_rapide = st.selectbox("Statut d'appel", ["Tous"] + STATUTS, key="filtre_rapide")
+        df_affiche = df.copy()
+        if filtre_rapide != "Tous":
+            df_affiche = df_affiche[df_affiche['statut_appel'] == filtre_rapide]
+        # Affichage du tableau avec colonnes dédiées
+        col_sel, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
+        with col_sel:
+            st.markdown("**Sélectionner**")
         with col_nom:
             st.markdown("**Nom**")
         with col_cat:
@@ -210,7 +214,7 @@ if page == "Prospection":
             st.markdown("**Téléphone**")
         with col_details:
             st.markdown("**Détails**")
-        for i, row in df.iterrows():
+        for i, row in df_affiche.iterrows():
             cols = st.columns([1,3,2,3,2,2])
             with cols[0]:
                 checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
@@ -231,9 +235,9 @@ if page == "Prospection":
                     st.session_state['show_details'] = row['place_id']
         st.session_state['selection'] = selection
 
-        # --- Panneau d'action à droite ---
+        # --- Panneau d'action à droite pour bulk ---
         if selection:
-            st.sidebar.subheader("Actions sur la sélection")
+            st.sidebar.subheader("Actions sur la sélection (bulk)")
             if st.sidebar.button("Supprimer la sélection", type="primary"):
                 with sqlite3.connect(DB_PATH) as conn:
                     c = conn.cursor()
@@ -242,7 +246,7 @@ if page == "Prospection":
                 st.success(f"{len(selection)} prospect(s) supprimé(s).")
                 st.session_state['selection'] = set()
                 st.experimental_rerun()
-            st.sidebar.markdown("**Changer le statut d'appel :**")
+            st.sidebar.markdown("**Changer le statut d'appel (bulk) :**")
             for statut in STATUTS:
                 if st.sidebar.button(statut, key=f"statut_bulk_{statut}"):
                     with sqlite3.connect(DB_PATH) as conn:
