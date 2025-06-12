@@ -252,8 +252,13 @@ if page == "Prospection":
                     selection.add(row['place_id'])
                 else:
                     selection.discard(row['place_id'])
+            # --- Clic sur la ligne pour transférer en client ---
+            transfer_key = f"transfer_{row['place_id']}"
             with cols[1]:
-                st.write(row['name'])
+                if st.button(row['name'], key=transfer_key):
+                    st.session_state['show_transfer'] = row['place_id']
+                else:
+                    st.write(row['name'])
             with cols[2]:
                 st.write(row['main_category'])
             with cols[3]:
@@ -288,6 +293,58 @@ if page == "Prospection":
                     st.success(f"Statut '{statut}' appliqué à la sélection.")
                     st.session_state['selection'] = set()
                     st.experimental_rerun()
+
+        # --- Popup de transfert en client ---
+        show_transfer = st.session_state.get('show_transfer', None)
+        if show_transfer:
+            prospect = df[df['place_id'] == show_transfer].iloc[0]
+            st.sidebar.subheader(f"Transférer {prospect['name']} en client")
+            with st.sidebar.form(f"form_transfer_{show_transfer}"):
+                date_debut = st.date_input("Date de début *")
+                date_fin = st.date_input("Date de fin *")
+                prix = st.number_input("Prix *", min_value=0.0, step=10.0)
+                encaisse = st.number_input("Encaissé (optionnel)", min_value=0.0, step=10.0, value=0.0)
+                recurrence = st.selectbox("Récurrent (optionnel)", ["Non", "2 semaines", "1 mois"])
+                submit_transfer = st.form_submit_button("Transférer en client")
+                if submit_transfer:
+                    if not (date_debut and date_fin and prix):
+                        st.error("Merci de remplir tous les champs obligatoires.")
+                    else:
+                        with sqlite3.connect(DB_PATH) as conn:
+                            c = conn.cursor()
+                            # Création du client
+                            c.execute("""
+                                INSERT INTO clients (place_id, name, phone, address, date_conversion, last_contact)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (
+                                prospect['place_id'],
+                                prospect['name'],
+                                prospect['phone'],
+                                prospect['address'],
+                                date_debut.strftime("%Y-%m-%d"),
+                                date_debut.strftime("%Y-%m-%d")
+                            ))
+                            client_id = c.lastrowid
+                            # Création de la commande
+                            c.execute("""
+                                INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (
+                                client_id,
+                                prospect['main_category'],
+                                prix,
+                                recurrence if recurrence != "Non" else None,
+                                date_debut.strftime("%Y-%m-%d"),
+                                date_fin.strftime("%Y-%m-%d"),
+                                encaisse,
+                                "active"
+                            ))
+                            # Suppression du prospect
+                            c.execute("DELETE FROM prospects WHERE place_id=?", (prospect['place_id'],))
+                            conn.commit()
+                        st.success("Prospect transféré en client avec succès !")
+                        st.session_state['show_transfer'] = None
+                        st.experimental_rerun()
 
         # --- Affichage des détails dans un panneau latéral ---
         show_details = st.session_state.get('show_details', None)
