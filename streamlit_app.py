@@ -84,22 +84,21 @@ if file:
         if not (tel_clean.startswith("06") or tel_clean.startswith("07") or tel_clean.startswith("+336") or tel_clean.startswith("+337")):
             erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
             continue
-        # Gestion du doublon : on met à jour si place_id existe déjà
-        place_id = str(row.get("place_id", "")).strip()
+        # Gestion du doublon : on met à jour si le téléphone existe déjà
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("SELECT * FROM prospects WHERE place_id=?", (place_id,))
+            c.execute("SELECT * FROM prospects WHERE phone=?", (tel,))
             exists = c.fetchone()
             if exists:
                 # Mise à jour
                 c.execute("""
                     UPDATE prospects SET
-                        name=?, website=?, phone=?, emails=?, main_category=?, categories=?, reviews=?, rating=?, address=?, horaires=?, link=?, featured_reviews=?, is_spending_on_ads=?, query=?
-                    WHERE place_id=?
+                        place_id=?, name=?, website=?, emails=?, main_category=?, categories=?, reviews=?, rating=?, address=?, horaires=?, link=?, featured_reviews=?, is_spending_on_ads=?, query=?
+                    WHERE phone=?
                 """, (
+                    str(row.get("place_id", "")).strip(),
                     nom,
                     row.get("website", ""),
-                    tel,
                     row.get("emails", ""),
                     row.get("main_category", ""),
                     str(row.get("categories", "")),
@@ -111,7 +110,7 @@ if file:
                     str(row.get("featured_reviews", "")),
                     str(row.get("is_spending_on_ads", "")),
                     row.get("query", ""),
-                    place_id
+                    tel
                 ))
             else:
                 # Insertion
@@ -119,7 +118,7 @@ if file:
                     INSERT INTO prospects (place_id, name, website, phone, emails, main_category, categories, reviews, rating, address, horaires, link, featured_reviews, is_spending_on_ads, query)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    place_id,
+                    str(row.get("place_id", "")).strip(),
                     nom,
                     row.get("website", ""),
                     tel,
@@ -168,14 +167,14 @@ if page == "Prospection":
             if not (lien and nom and categorie and telephone):
                 st.error("Merci de remplir tous les champs obligatoires.")
             else:
-                # Générer un place_id simple à partir du lien (hash ou partie unique)
+                import hashlib
                 place_id = hashlib.md5(lien.encode()).hexdigest()
                 with sqlite3.connect(DB_PATH) as conn:
                     c = conn.cursor()
-                    c.execute("SELECT * FROM prospects WHERE place_id=? OR phone=?", (place_id, telephone))
+                    c.execute("SELECT * FROM prospects WHERE phone=?", (telephone,))
                     exists = c.fetchone()
                     if exists:
-                        st.error("Ce prospect existe déjà (même lien ou même téléphone).")
+                        st.error("Ce prospect existe déjà (même téléphone).")
                     else:
                         c.execute("""
                             INSERT INTO prospects (place_id, name, main_category, phone, link)
