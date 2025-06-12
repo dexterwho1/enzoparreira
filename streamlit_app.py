@@ -192,36 +192,49 @@ if page == "Prospection":
     if voir_non_appeles:
         df = df[df['statut_appel'].isnull() | (df['statut_appel'] == "")]
     
-    # Affichage du tableau
+    # Suppression multiple
+    st.write("")
+    st.subheader("Sélection et suppression")
+    if not df.empty:
+        selection = st.multiselect(
+            "Sélectionner les prospects à supprimer :",
+            options=df['place_id'],
+            format_func=lambda x: df[df['place_id'] == x]['name'].values[0]
+        )
+        if selection:
+            if st.button("Supprimer la sélection", type="primary"):
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.executemany("DELETE FROM prospects WHERE place_id=?", [(pid,) for pid in selection])
+                    conn.commit()
+                st.success(f"{len(selection)} prospect(s) supprimé(s).")
+                st.experimental_rerun()
+    
+    # Affichage du tableau avec clic pour modifier le statut
     if df.empty:
         st.info("Aucun prospect trouvé.")
     else:
-        def lien_maps(row):
-            if row['link']:
-                return f"[Maps]({row['link']})"
-            return "Non dispo"
-        def lien_site(row):
-            if row['website']:
-                return f"[Site]({row['website']})"
-            return "Non dispo"
-        def mailto(row):
-            if row['emails']:
-                return f"[Email](mailto:{row['emails']})"
-            return "Non dispo"
-        # Construction du tableau affiché
-        display_df = pd.DataFrame({
-            'Nom': df['name'],
-            'Téléphone': df['phone'],
-            'Adresse': df['address'],
-            'Catégorie': df['main_category'],
-            'Site web': df.apply(lien_site, axis=1),
-            'Email': df.apply(mailto, axis=1),
-            'Lien Google Maps': df.apply(lien_maps, axis=1),
-            'Avis': df['reviews'],
-            'Note': df['rating'],
-            'Statut appel': df['statut_appel'].fillna("")
-        })
-        st.dataframe(display_df, use_container_width=True)
-        st.caption("Cliquez sur un prospect pour voir les détails ou changer le statut d'appel.")
+        st.write("")
+        st.subheader("Tableau des prospects")
+        for idx, row in df.iterrows():
+            with st.expander(f"{row['name']} | {row['phone']} | {row['address']}"):
+                st.markdown(f"**Catégorie :** {row['main_category']}")
+                st.markdown(f"**Site web :** {'[Site](' + row['website'] + ')' if row['website'] else 'Non dispo'}")
+                st.markdown(f"**Email :** {'[Email](mailto:' + row['emails'] + ')' if row['emails'] else 'Non dispo'}")
+                st.markdown(f"**Lien Google Maps :** {'[Maps](' + row['link'] + ')' if row['link'] else 'Non dispo'}")
+                st.markdown(f"**Avis :** {row['reviews']} | **Note :** {row['rating']}")
+                st.markdown(f"**Statut appel actuel :** {row['statut_appel'] if row['statut_appel'] else 'Non renseigné'}")
+                new_statut = st.selectbox(
+                    "Changer le statut d'appel :",
+                    [row['statut_appel']] + [s for s in STATUTS if s != row['statut_appel']],
+                    key=f"statut_{row['place_id']}"
+                )
+                if new_statut != row['statut_appel'] and st.button("Enregistrer le nouveau statut", key=f"save_{row['place_id']}"):
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (new_statut, datetime.now().strftime("%Y-%m-%d %H:%M"), row['place_id']))
+                        conn.commit()
+                    st.success("Statut mis à jour !")
+                    st.experimental_rerun()
 
 # ... le reste du code (autres pages) ...
