@@ -181,25 +181,35 @@ if page == "Prospection":
     if filtre_statut != "Tous":
         df = df[df['statut_appel'] == filtre_statut]
 
-    # --- Sélection multiple ---
     st.write("")
     st.subheader("Tableau des prospects")
     if df.empty:
         st.info("Aucun prospect trouvé.")
     else:
-        # Ajout d'une colonne de sélection
+        # Gestion de la sélection multiple
         selection = st.session_state.get('selection', set())
         if not isinstance(selection, set):
             selection = set()
         all_ids = df['place_id'].tolist()
-        col_select, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
-        with col_select:
-            select_all = st.checkbox("Tout sélectionner", value=len(selection)==len(all_ids), key="select_all")
-            if select_all:
-                selection = set(all_ids)
-            else:
-                selection = set()
-        # Affichage des lignes
+        # Affichage de la case 'Tout sélectionner' au-dessus du tableau
+        select_all = st.checkbox("Tout sélectionner", value=len(selection)==len(all_ids) and len(all_ids)>0, key="select_all_checkbox")
+        # Mise à jour de la sélection si on coche/décoche 'Tout sélectionner'
+        if select_all and len(selection) != len(all_ids):
+            selection = set(all_ids)
+        elif not select_all and len(selection) == len(all_ids):
+            selection = set()
+        # Affichage du tableau
+        col_nom, col_cat, col_adr, col_tel, col_details = st.columns([3,2,3,2,2])
+        with col_nom:
+            st.markdown("**Nom**")
+        with col_cat:
+            st.markdown("**Catégorie**")
+        with col_adr:
+            st.markdown("**Adresse**")
+        with col_tel:
+            st.markdown("**Téléphone**")
+        with col_details:
+            st.markdown("**Détails**")
         for i, row in df.iterrows():
             cols = st.columns([1,3,2,3,2,2])
             with cols[0]:
