@@ -182,7 +182,7 @@ if page == "Prospection":
                         """, (place_id, nom, categorie, telephone, lien))
                         conn.commit()
                         st.success("Prospect ajouté avec succès !")
-                        st.experimental_rerun()
+                        st.rerun()
 
     st.header("Liste des prospects")
     # Filtres principaux (hors statut d'appel)
@@ -263,7 +263,7 @@ if page == "Prospection":
         for i, row in df_affiche.iterrows():
             cols = st.columns([1,3,2,3,2,2,2,2])
             with cols[0]:
-                checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
+                checked = st.checkbox(" ", value=row['place_id'] in selection, key=f"sel_{row['place_id']}", label_visibility="collapsed")
                 if checked:
                     selection.add(row['place_id'])
                 else:
@@ -295,7 +295,7 @@ if page == "Prospection":
                         # Sinon on sélectionne ce prospect
                         st.session_state['selected_individual'] = row['place_id']
                         st.session_state['show_statut_popup'] = row['place_id']
-                    st.experimental_rerun()
+                    st.rerun()
                     
                 # Afficher le statut actuel
                 if row['statut_appel']:
@@ -324,11 +324,11 @@ if page == "Prospection":
                     conn.commit()
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
-                st.experimental_rerun()
+                st.rerun()
             if st.sidebar.button("❌ Annuler", key="cancel_statut_popup"):
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
-                st.experimental_rerun()
+                st.rerun()
 
         # --- Panneau d'action à droite pour bulk ---
         if selection:
@@ -340,7 +340,7 @@ if page == "Prospection":
                     conn.commit()
                 st.success(f"{len(selection)} prospect(s) supprimé(s).")
                 st.session_state['selection'] = set()
-                st.experimental_rerun()
+                st.rerun()
             st.sidebar.markdown("**Changer le statut d'appel (bulk) :**")
             for statut in STATUTS:
                 if st.sidebar.button(statut, key=f"statut_bulk_{statut}"):
@@ -352,7 +352,7 @@ if page == "Prospection":
                         conn.commit()
                     st.success(f"Statut '{statut}' appliqué à la sélection.")
                     st.session_state['selection'] = set()
-                    st.experimental_rerun()
+                    st.rerun()
 
         # --- Popup de transfert en client ---
         show_transfer = st.session_state.get('show_transfer', None)
@@ -405,11 +405,11 @@ if page == "Prospection":
                             conn.commit()
                         st.success("Prospect transféré en client avec succès !")
                         st.session_state['show_transfer'] = None
-                        st.experimental_rerun()
+                        st.rerun()
                         
             if st.sidebar.button("Fermer", key="close_transfer"):
                 st.session_state['show_transfer'] = None
-                st.experimental_rerun()
+                st.rerun()
 
         # --- Affichage des détails dans un panneau latéral ---
         show_details = st.session_state.get('show_details', None)
@@ -434,10 +434,10 @@ if page == "Prospection":
                         conn.commit()
                     st.success(f"Statut '{statut}' appliqué à {detail_row['name']}.")
                     st.session_state['show_details'] = None
-                    st.experimental_rerun()
+                    st.rerun()
             if st.sidebar.button("Fermer", key="close_details"):
                 st.session_state['show_details'] = None
-                st.experimental_rerun()
+                st.rerun()
 
 # Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
 elif page == "Dashboard":
