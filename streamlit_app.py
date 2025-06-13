@@ -257,17 +257,15 @@ if page == "Prospection":
                         selection.add(row['place_id'])
                     else:
                         selection.discard(row['place_id'])
-                # Ligne cliquable (Nom, Catégorie, Adresse, Téléphone)
-                ligne = f"{row['name']} | {row['main_category']} | {row['address']} | {row['phone']}"
                 with cols[1]:
-                    if st.button(ligne, key=f"ligne_{row['place_id']}"):
+                    if st.button(row['name'], key=f"nom_{row['place_id']}"):
                         st.session_state['show_transfer'] = row['place_id']
                 with cols[2]:
-                    st.write("")
+                    st.write(row['main_category'])
                 with cols[3]:
-                    st.write("")
+                    st.write(row['address'])
                 with cols[4]:
-                    st.write("")
+                    st.write(row['phone'])
                 with cols[5]:
                     st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
                 with cols[6]:
