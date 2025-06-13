@@ -448,7 +448,8 @@ elif page == "Dashboard":
     st.info("Page Dashboard à implémenter")
     
 elif page == "CRM Clients":
-    import crm_clients
+    with open("crm_clients.py", encoding="utf-8") as f:
+        exec(f.read(), globals())
     
 elif page == "Commandes":
     st.title("Commandes")
