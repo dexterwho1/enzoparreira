@@ -128,6 +128,10 @@ else:
         dernier_contact = row['last_contact'] if 'last_contact' in row else "-"
         # Coût par heure (placeholder)
         cout_heure = "-"
+        # Ajout d'un bouton unique par client
+        voir_key = f"voir_{client_id}"
+        if st.button("Voir", key=voir_key):
+            st.session_state['show_client_details'] = client_id
         table.append({
             "Nom": row['name'],
             "Téléphone": row['phone'],
@@ -138,6 +142,30 @@ else:
             "Facturé": facture,
             "Coût par heure": cout_heure,
             "Commandes": ', '.join(prestations),
-            "En savoir plus": "Voir"
+            "En savoir plus": st.session_state.get('show_client_details', None) == client_id
         })
-    st.dataframe(pd.DataFrame(table)) 
+    st.dataframe(pd.DataFrame([{k: v if k != 'En savoir plus' else 'Voir' for k, v in row.items()} for row in table]))
+
+    # Affichage des détails dans la sidebar
+    show_client_details = st.session_state.get('show_client_details', None)
+    if show_client_details:
+        client_row = df[df['client_id'] == show_client_details].iloc[0]
+        st.sidebar.subheader(f"Détails pour {client_row['name']}")
+        st.sidebar.markdown(f"**Téléphone :** {client_row['phone']}")
+        st.sidebar.markdown(f"**Adresse :** {client_row['address']}")
+        st.sidebar.markdown(f"**Dernier contact :** {client_row['last_contact'] if 'last_contact' in client_row else '-'}")
+        st.sidebar.markdown(f"**Date conversion :** {client_row['date_conversion'] if 'date_conversion' in client_row else '-'}")
+        # Si le client a un place_id, on va chercher les infos du prospect
+        if 'place_id' in client_row and client_row['place_id']:
+            with sqlite3.connect(DB_PATH) as conn:
+                prospect = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(client_row['place_id'],))
+                if not prospect.empty:
+                    p = prospect.iloc[0]
+                    st.sidebar.markdown(f"**Catégorie :** {p['main_category']}")
+                    st.sidebar.markdown(f"**Site web :** {'[Site](' + p['website'] + ')' if p['website'] else 'Non dispo'}")
+                    st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + p['emails'] + ')' if p['emails'] else 'Non dispo'}")
+                    st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + p['link'] + ')' if p['link'] else 'Non dispo'}")
+                    st.sidebar.markdown(f"**Avis :** {p['reviews']} | **Note :** {p['rating']}")
+        if st.sidebar.button("Fermer", key="close_client_details"):
+            st.session_state['show_client_details'] = None
+            st.rerun() 
