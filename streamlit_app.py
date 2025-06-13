@@ -345,6 +345,9 @@ if page == "Prospection":
                 encaisse = st.number_input("Encaissé (optionnel)", min_value=0.0, step=10.0, value=0.0)
                 recurrence = st.selectbox("Récurrent (optionnel)", ["Non", "2 semaines", "1 mois"])
                 submit_transfer = st.form_submit_button("Transférer en client")
+            if st.sidebar.button("Fermer", key="close_transfer"):
+                st.session_state['show_transfer'] = None
+                st.experimental_rerun()
                 if submit_transfer:
                     if not (date_debut and date_fin and prix):
                         st.error("Merci de remplir tous les champs obligatoires.")
