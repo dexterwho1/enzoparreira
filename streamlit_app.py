@@ -223,6 +223,8 @@ if page == "Prospection":
         # Initialiser la sélection individuelle si elle n'existe pas
         if 'selected_individual' not in st.session_state:
             st.session_state['selected_individual'] = None
+        if 'show_statut_popup' not in st.session_state:
+            st.session_state['show_statut_popup'] = None
             
         # Affichage de la case 'Tout sélectionner' au-dessus du tableau
         select_all = st.checkbox("Tout sélectionner pour bulk", value=len(selection)==len(all_ids) and len(all_ids)>0, key="select_all_checkbox")
