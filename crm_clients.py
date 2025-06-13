@@ -105,4 +105,41 @@ else:
             "Commandes": ', '.join(prestations),
             "En savoir plus": "Voir"
         })
-    st.dataframe(pd.DataFrame(table)) 
+    st.dataframe(pd.DataFrame(table))
+
+# --- Données fictives si la table clients est vide ---
+with sqlite3.connect(DB_PATH) as conn:
+    c = conn.cursor()
+    nb_clients = c.execute("SELECT COUNT(*) FROM clients").fetchone()[0]
+    if nb_clients == 0:
+        prospects = c.execute("SELECT * FROM prospects").fetchall()
+        for p in prospects:
+            # On suppose que l'ordre des colonnes est celui de la création de table
+            place_id, name, website, phone, emails, main_category, categories, reviews, rating, address, horaires, link, featured_reviews, is_spending_on_ads, query, statut_appel, date_dernier_appel, meta_appel = p
+            c.execute("""
+                INSERT INTO clients (place_id, name, phone, address, date_conversion, last_contact)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                place_id,
+                name + " (fictif)",
+                phone,
+                address,
+                datetime.now().strftime("%Y-%m-%d"),
+                datetime.now().strftime("%Y-%m-%d")
+            ))
+            client_id = c.lastrowid
+            # Commande fictive
+            c.execute("""
+                INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                client_id,
+                main_category or "Service fictif",
+                100.0,
+                "1 mois",
+                datetime.now().strftime("%Y-%m-%d"),
+                datetime.now().strftime("%Y-%m-%d"),
+                0.0,
+                "livré"
+            ))
+        conn.commit() 
