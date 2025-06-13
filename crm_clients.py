@@ -134,9 +134,15 @@ if df.empty:
 else:
     st.write("")
     st.subheader("")
-    # Construction du DataFrame pour st.dataframe
-    table = []
-    voir_keys = []
+    # En-têtes du tableau
+    headers = [
+        "Nom", "Téléphone", "Adresse", "Dernier contact", "Récurrence", "À encaisser", "Facturé", "Coût par heure", "Commandes", "En savoir plus"
+    ]
+    col_widths = [2,1.2,2,1.2,1,1,1,1,2,1]
+    header_cols = st.columns(col_widths)
+    for i, h in enumerate(headers):
+        header_cols[i].markdown(f"**{h}**")
+    # Affichage des lignes
     for _, row in df.iterrows():
         client_id = row['client_id']
         prestations = ', '.join(commandes[commandes['client_id'] == client_id]['prestation'].tolist())
@@ -145,24 +151,18 @@ else:
         a_encaisser = "0"
         facture = "0"
         rec = ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist()))
+        line_cols = st.columns(col_widths)
+        line_cols[0].write(row['name'])
+        line_cols[1].write(row['phone'])
+        line_cols[2].write(row['address'])
+        line_cols[3].write(dernier_contact)
+        line_cols[4].write(rec)
+        line_cols[5].write(a_encaisser)
+        line_cols[6].write(facture)
+        line_cols[7].write(cout_heure)
+        line_cols[8].write(prestations)
         voir_key = f"voir_{client_id}"
-        voir_keys.append((voir_key, client_id))
-        table.append({
-            "Nom": row['name'],
-            "Téléphone": row['phone'],
-            "Adresse": row['address'],
-            "Dernier contact": dernier_contact,
-            "Récurrence": rec,
-            "À encaisser": a_encaisser,
-            "Facturé": facture,
-            "Coût par heure": cout_heure,
-            "Commandes": prestations,
-            "En savoir plus": "Voir"
-        })
-    st.dataframe(pd.DataFrame(table), use_container_width=True)
-    # Affichage des boutons "Voir" sous le tableau
-    for voir_key, client_id in voir_keys:
-        if st.button(f"Voir détails client {client_id}", key=voir_key):
+        if line_cols[9].button("Voir", key=voir_key):
             st.session_state['show_client_details'] = client_id
     # Affichage des détails dans la sidebar
     show_client_details = st.session_state.get('show_client_details', None)
