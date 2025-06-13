@@ -448,8 +448,7 @@ elif page == "Dashboard":
     st.info("Page Dashboard à implémenter")
     
 elif page == "CRM Clients":
-    st.title("CRM Clients")
-    st.info("Page CRM Clients à implémenter")
+    import crm_clients
     
 elif page == "Commandes":
     st.title("Commandes")
