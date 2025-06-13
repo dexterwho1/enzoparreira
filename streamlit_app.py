@@ -309,20 +309,20 @@ if page == "Prospection":
             prospect_popup = df[df['place_id'] == show_statut_popup].iloc[0]
             st.sidebar.subheader(f"Changer le statut d'appel pour {prospect_popup['name']}")
             st.sidebar.markdown(f"**Statut actuel :** {prospect_popup['statut_appel'] if prospect_popup['statut_appel'] else 'Non défini'}")
-            
+            statut_choisi = None
             for statut in STATUTS:
                 if st.sidebar.button(f"✅ {statut}", key=f"popup_statut_{statut}_{show_statut_popup}"):
-                    with sqlite3.connect(DB_PATH) as conn:
-                        c = conn.cursor()
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
-                                (statut, now, show_statut_popup))
-                        conn.commit()
-                    st.success(f"Statut '{statut}' appliqué à {prospect_popup['name']}.")
-                    st.session_state['show_statut_popup'] = None
-                    st.session_state['selected_individual'] = None
-                    st.experimental_rerun()
-                    
+                    statut_choisi = statut
+            if statut_choisi:
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
+                            (statut_choisi, now, show_statut_popup))
+                    conn.commit()
+                st.session_state['show_statut_popup'] = None
+                st.session_state['selected_individual'] = None
+                st.experimental_rerun()
             if st.sidebar.button("❌ Annuler", key="cancel_statut_popup"):
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
