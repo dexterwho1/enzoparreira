@@ -295,16 +295,18 @@ if page == "Prospection":
                         selection.add(row['place_id'])
                     else:
                         selection.discard(row['place_id'])
-                ligne = f"{row['name']} | {row['main_category']} | {row['address']} | {row['phone']}"
                 with cols[1]:
-                    if st.button(ligne, key=f"ligne_{row['place_id']}"):
-                        st.session_state['show_transfer'] = row['place_id']
+                    st.markdown(f"<div style='text-align:left; padding:8px; white-space:nowrap'>" + 
+                               f"{row['name']}</div>", unsafe_allow_html=True)
                 with cols[2]:
-                    st.write("")
+                    st.markdown(f"<div style='text-align:left; padding:8px; white-space:nowrap'>" + 
+                               f"{row['main_category']}</div>", unsafe_allow_html=True)
                 with cols[3]:
-                    st.write("")
+                    st.markdown(f"<div style='text-align:left; padding:8px; white-space:nowrap'>" + 
+                               f"{row['address']}</div>", unsafe_allow_html=True)
                 with cols[4]:
-                    st.write("")
+                    st.markdown(f"<div style='text-align:left; padding:8px; white-space:nowrap'>" + 
+                               f"{row['phone']}</div>", unsafe_allow_html=True)
                 with cols[5]:
                     if st.button("Détails", key=f"details_{row['place_id']}"):
                         st.session_state['show_details'] = row['place_id']
