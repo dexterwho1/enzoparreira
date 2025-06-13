@@ -142,32 +142,33 @@ else:
     <style>
     .table-header {font-weight:bold;}
     .scroll-table {overflow-x: auto; width: 100%;}
+    .nowrap {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    .wrapcol {max-width: 180px; word-break: break-word;}
     .element-container:has(.table-header), .element-container:has(button) {min-width: 90px !important; max-width: 220px !important;}
     </style>
     <div class='scroll-table'>
     """, unsafe_allow_html=True)
-    # Largeurs adaptées : nom, adresse, commandes plus larges, autres plus petites
     cols = st.columns([2.2,1.2,2.2,1.2,0.8,0.8,0.8,0.8,2,0.8])
     for i, h in enumerate(headers):
         cols[i].markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
     for _, row in df.iterrows():
         client_id = row['client_id']
-        prestations = commandes[commandes['client_id'] == client_id]['prestation'].tolist()
+        prestations = ', '.join(commandes[commandes['client_id'] == client_id]['prestation'].tolist())
         dernier_contact = row['last_contact'] if 'last_contact' in row else "-"
         cout_heure = "-"
-        a_encaisser = 0
-        facture = 0
+        a_encaisser = "0"
+        facture = "0"
         rec = ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist()))
         line_cols = st.columns([2.2,1.2,2.2,1.2,0.8,0.8,0.8,0.8,2,0.8])
-        line_cols[0].write(row['name'])
-        line_cols[1].write(row['phone'])
-        line_cols[2].write(row['address'])
-        line_cols[3].write(dernier_contact)
-        line_cols[4].write(rec)
-        line_cols[5].write(a_encaisser)
-        line_cols[6].write(facture)
-        line_cols[7].write(cout_heure)
-        line_cols[8].write(', '.join(prestations))
+        line_cols[0].markdown(f"<div class='wrapcol'>{row['name']}</div>", unsafe_allow_html=True)
+        line_cols[1].markdown(f"<div class='nowrap'>{row['phone']}</div>", unsafe_allow_html=True)
+        line_cols[2].markdown(f"<div class='wrapcol'>{row['address']}</div>", unsafe_allow_html=True)
+        line_cols[3].markdown(f"<div class='nowrap'>{dernier_contact}</div>", unsafe_allow_html=True)
+        line_cols[4].markdown(f"<div class='nowrap'>{rec}</div>", unsafe_allow_html=True)
+        line_cols[5].markdown(f"<div class='nowrap'>{a_encaisser}</div>", unsafe_allow_html=True)
+        line_cols[6].markdown(f"<div class='nowrap'>{facture}</div>", unsafe_allow_html=True)
+        line_cols[7].markdown(f"<div class='nowrap'>{cout_heure}</div>", unsafe_allow_html=True)
+        line_cols[8].markdown(f"<div class='wrapcol'>{prestations}</div>", unsafe_allow_html=True)
         voir_key = f"voir_{client_id}"
         if line_cols[9].button("Voir", key=voir_key):
             st.session_state['show_client_details'] = client_id
