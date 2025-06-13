@@ -232,23 +232,51 @@ if page == "Prospection":
         df_affiche = df.copy()
         if filtre_rapide != "Tous":
             df_affiche = df_affiche[df_affiche['statut_appel'] == filtre_rapide]
+
+        # Styles CSS pour le tableau
+        st.markdown("""
+        <style>
+        .table-cell {
+            padding: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border: 1px solid #444;
+            min-height: 40px;
+            background-color: #222;
+            color: white;
+        }
+        .table-header {
+            font-weight: bold;
+            text-align: center;
+            background-color: #333;
+            color: white;
+        }
+        .table-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
         # Affichage du tableau avec colonnes dédiées
         if filtre_rapide != "Tous":
             col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details = st.columns([1,3,2,3,2,2,2])
             with col_sel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Sélectionner</div>", unsafe_allow_html=True)
             with col_nom:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Nom</div>", unsafe_allow_html=True)
             with col_cat:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Catégorie</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Catégorie</div>", unsafe_allow_html=True)
             with col_adr:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Adresse</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Adresse</div>", unsafe_allow_html=True)
             with col_tel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Téléphone</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Téléphone</div>", unsafe_allow_html=True)
             with col_date:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Date action</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Date action</div>", unsafe_allow_html=True)
             with col_details:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
+                st.markdown("<div class='table-cell table-header'>Détails</div>", unsafe_allow_html=True)
             for i, row in df_affiche.iterrows():
                 cols = st.columns([1,3,2,3,2,2,2])
                 with cols[0]:
@@ -257,19 +285,22 @@ if page == "Prospection":
                         selection.add(row['place_id'])
                     else:
                         selection.discard(row['place_id'])
-                # Ligne cliquable (Nom, Catégorie, Adresse, Téléphone)
-                ligne = f"{row['name']} | {row['main_category']} | {row['address']} | {row['phone']}"
                 with cols[1]:
-                    if st.button(ligne, key=f"ligne_{row['place_id']}"):
-                        st.session_state['show_transfer'] = row['place_id']
+                    st.markdown(f"<div class='table-cell'>" + 
+                               f"{row['name']}</div>", unsafe_allow_html=True)
                 with cols[2]:
-                    st.write("")
+                    st.markdown(f"<div class='table-cell'>" + 
+                               f"{row['main_category']}</div>", unsafe_allow_html=True)
                 with cols[3]:
-                    st.write("")
+                    st.markdown(f"<div class='table-cell'>" + 
+                               f"{row['address']}</div>", unsafe_allow_html=True)
                 with cols[4]:
-                    st.write("")
+                    st.markdown(f"<div class='table-cell'>" + 
+                               f"{row['phone']}</div>", unsafe_allow_html=True)
                 with cols[5]:
-                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+                    st.markdown(f"<div class='table-cell'>" + 
+                               f"{row['date_dernier_appel'] if row['date_dernier_appel'] else '-'}" +
+                               f"</div>", unsafe_allow_html=True)
                 with cols[6]:
                     if st.button("Détails", key=f"details_{row['place_id']}"):
                         st.session_state['show_details'] = row['place_id']
