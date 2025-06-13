@@ -144,7 +144,7 @@ if file:
 STATUTS = ["n'a pas répondu", "à rappeller", "r1", "pas intérréssé", "signé"]
 
 # --- Navigation ---
-PAGES = ["Dashboard", "CRM Clients", "Commandes", "Planning", "Prospection"]
+PAGES = ["Dashboard", "CRM Clients", "Commandes", "Planning", "Prospection", "KPI Prospection"]
 page = st.sidebar.radio("Navigation", PAGES, index=4)
 
 if page == "Prospection":
@@ -438,6 +438,9 @@ if page == "Prospection":
             if st.sidebar.button("Fermer", key="close_details"):
                 st.session_state['show_details'] = None
                 st.rerun()
+
+elif page == "KPI Prospection":
+    import kpi_prospection
 
 # Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
 elif page == "Dashboard":
