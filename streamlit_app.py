@@ -258,7 +258,8 @@ if page == "Prospection":
                     else:
                         selection.discard(row['place_id'])
                 with cols[1]:
-                    st.write(row['name'])
+                    if st.button(row['name'], key=f"nom_{row['place_id']}"):
+                        st.session_state['show_transfer'] = row['place_id']
                 with cols[2]:
                     st.write(row['main_category'])
                 with cols[3]:
