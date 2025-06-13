@@ -134,36 +134,38 @@ if df.empty:
 else:
     st.write("")
     st.subheader("")
-    table = []
+    # En-têtes du tableau
+    headers = [
+        "Nom", "Téléphone", "Adresse", "Dernier contact", "Récurrence", "À encaisser", "Facturé", "Coût par heure", "Commandes", "En savoir plus"
+    ]
+    st.markdown("""
+    <style> .table-header {font-weight:bold;} </style>
+    """, unsafe_allow_html=True)
+    cols = st.columns([2,2,2,2,1,1,1,1,2,1])
+    for i, h in enumerate(headers):
+        cols[i].markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
+    # Affichage des lignes
     for _, row in df.iterrows():
         client_id = row['client_id']
-        # Commandes du client
         prestations = commandes[commandes['client_id'] == client_id]['prestation'].tolist()
-        # À encaisser et facturé (placeholders)
+        dernier_contact = row['last_contact'] if 'last_contact' in row else "-"
+        cout_heure = "-"
         a_encaisser = 0
         facture = 0
-        # Dernier contact (placeholder)
-        dernier_contact = row['last_contact'] if 'last_contact' in row else "-"
-        # Coût par heure (placeholder)
-        cout_heure = "-"
-        # Ajout d'un bouton unique par client
+        rec = ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist()))
+        line_cols = st.columns([2,2,2,2,1,1,1,1,2,1])
+        line_cols[0].write(row['name'])
+        line_cols[1].write(row['phone'])
+        line_cols[2].write(row['address'])
+        line_cols[3].write(dernier_contact)
+        line_cols[4].write(rec)
+        line_cols[5].write(a_encaisser)
+        line_cols[6].write(facture)
+        line_cols[7].write(cout_heure)
+        line_cols[8].write(', '.join(prestations))
         voir_key = f"voir_{client_id}"
-        if st.button("Voir", key=voir_key):
+        if line_cols[9].button("Voir", key=voir_key):
             st.session_state['show_client_details'] = client_id
-        table.append({
-            "Nom": row['name'],
-            "Téléphone": row['phone'],
-            "Adresse": row['address'],
-            "Dernier contact": dernier_contact,
-            "Récurrence": ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist())),
-            "À encaisser": a_encaisser,
-            "Facturé": facture,
-            "Coût par heure": cout_heure,
-            "Commandes": ', '.join(prestations),
-            "En savoir plus": st.session_state.get('show_client_details', None) == client_id
-        })
-    st.dataframe(pd.DataFrame([{k: v if k != 'En savoir plus' else 'Voir' for k, v in row.items()} for row in table]))
-
     # Affichage des détails dans la sidebar
     show_client_details = st.session_state.get('show_client_details', None)
     if show_client_details:
@@ -173,12 +175,11 @@ else:
         st.sidebar.markdown(f"**Adresse :** {client_row.get('address', 'Non renseigné')}")
         st.sidebar.markdown(f"**Dernier contact :** {client_row.get('last_contact', 'Non renseigné')}")
         st.sidebar.markdown(f"**Date conversion :** {client_row.get('date_conversion', 'Non renseigné')}")
-        st.sidebar.markdown(f"**Récurrence :** {', '.join(set(commandes[commandes['client_id'] == show_client_details]['recurrence'].dropna().astype(str).tolist())) or 'Non renseigné'}")
-        st.sidebar.markdown(f"**À encaisser :** {a_encaisser if 'a_encaisser' in locals() else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Facturé :** {facture if 'facture' in locals() else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Coût par heure :** {cout_heure if 'cout_heure' in locals() else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Commandes :** {', '.join(commandes[commandes['client_id'] == show_client_details]['prestation'].dropna().astype(str).tolist()) or 'Non renseigné'}")
-        # Champs enrichis (catégorie, site web, email, etc.)
+        st.sidebar.markdown(f"**Récurrence :** {rec or 'Non renseigné'}")
+        st.sidebar.markdown(f"**À encaisser :** {a_encaisser}")
+        st.sidebar.markdown(f"**Facturé :** {facture}")
+        st.sidebar.markdown(f"**Coût par heure :** {cout_heure}")
+        st.sidebar.markdown(f"**Commandes :** {', '.join(prestations) or 'Non renseigné'}")
         cat = client_row.get('main_category', None)
         site = client_row.get('website', None)
         email = client_row.get('emails', None)
