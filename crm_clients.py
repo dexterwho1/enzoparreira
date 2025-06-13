@@ -50,9 +50,13 @@ with st.form("ajout_client_form"):
     adresse = st.text_input("Adresse *", "")
     recurrence = st.selectbox("Récurrence", ["Non", "2 semaines", "1 mois"])
     deliverabilite = st.selectbox("Délivrabilité", ["Délivrabilité", "Tout livré", "Non livré"])
+    date_debut = st.date_input("Date de début du contrat *", value=datetime.now())
+    date_delivrabilite = st.date_input("Date de délivrabilité *", value=datetime.now())
+    prix = st.number_input("Prix *", min_value=0.0, step=10.0)
+    encaisse = st.number_input("Argent encaissé (optionnel)", min_value=0.0, step=10.0, value=0.0)
     submitted = st.form_submit_button("Ajouter")
     if submitted:
-        if not (nom and telephone and adresse):
+        if not (nom and telephone and adresse and prix and date_debut and date_delivrabilite):
             st.error("Merci de remplir tous les champs obligatoires.")
         else:
             with sqlite3.connect(DB_PATH) as conn:
@@ -64,8 +68,22 @@ with st.form("ajout_client_form"):
                     nom,
                     telephone,
                     adresse,
-                    datetime.now().strftime("%Y-%m-%d"),
-                    datetime.now().strftime("%Y-%m-%d")
+                    date_debut.strftime("%Y-%m-%d"),
+                    date_debut.strftime("%Y-%m-%d")
+                ))
+                client_id = c.lastrowid
+                c.execute("""
+                    INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    client_id,
+                    "Service manuel",
+                    prix,
+                    recurrence if recurrence != "Non" else None,
+                    date_debut.strftime("%Y-%m-%d"),
+                    date_delivrabilite.strftime("%Y-%m-%d"),
+                    encaisse,
+                    deliverabilite if deliverabilite != "Délivrabilité" else None
                 ))
                 conn.commit()
             st.success("Client ajouté avec succès !")
