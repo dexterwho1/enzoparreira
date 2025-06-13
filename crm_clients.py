@@ -168,22 +168,28 @@ else:
     show_client_details = st.session_state.get('show_client_details', None)
     if show_client_details:
         client_row = df[df['client_id'] == show_client_details].iloc[0]
-        st.sidebar.subheader(f"Détails pour {client_row['name']}")
-        st.sidebar.markdown(f"**Téléphone :** {client_row['phone']}")
-        st.sidebar.markdown(f"**Adresse :** {client_row['address']}")
-        st.sidebar.markdown(f"**Dernier contact :** {client_row['last_contact'] if 'last_contact' in client_row else '-'}")
-        st.sidebar.markdown(f"**Date conversion :** {client_row['date_conversion'] if 'date_conversion' in client_row else '-'}")
-        # Si le client a un place_id, on va chercher les infos du prospect
-        if 'place_id' in client_row and client_row['place_id']:
-            with sqlite3.connect(DB_PATH) as conn:
-                prospect = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(client_row['place_id'],))
-                if not prospect.empty:
-                    p = prospect.iloc[0]
-                    st.sidebar.markdown(f"**Catégorie :** {p['main_category']}")
-                    st.sidebar.markdown(f"**Site web :** {'[Site](' + p['website'] + ')' if p['website'] else 'Non dispo'}")
-                    st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + p['emails'] + ')' if p['emails'] else 'Non dispo'}")
-                    st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + p['link'] + ')' if p['link'] else 'Non dispo'}")
-                    st.sidebar.markdown(f"**Avis :** {p['reviews']} | **Note :** {p['rating']}")
+        st.sidebar.subheader(f"Détails pour {client_row.get('name', 'Non renseigné')}")
+        st.sidebar.markdown(f"**Téléphone :** {client_row.get('phone', 'Non renseigné')}")
+        st.sidebar.markdown(f"**Adresse :** {client_row.get('address', 'Non renseigné')}")
+        st.sidebar.markdown(f"**Dernier contact :** {client_row.get('last_contact', 'Non renseigné')}")
+        st.sidebar.markdown(f"**Date conversion :** {client_row.get('date_conversion', 'Non renseigné')}")
+        st.sidebar.markdown(f"**Récurrence :** {', '.join(set(commandes[commandes['client_id'] == show_client_details]['recurrence'].dropna().astype(str).tolist())) or 'Non renseigné'}")
+        st.sidebar.markdown(f"**À encaisser :** {a_encaisser if 'a_encaisser' in locals() else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Facturé :** {facture if 'facture' in locals() else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Coût par heure :** {cout_heure if 'cout_heure' in locals() else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Commandes :** {', '.join(commandes[commandes['client_id'] == show_client_details]['prestation'].dropna().astype(str).tolist()) or 'Non renseigné'}")
+        # Champs enrichis (catégorie, site web, email, etc.)
+        cat = client_row.get('main_category', None)
+        site = client_row.get('website', None)
+        email = client_row.get('emails', None)
+        link = client_row.get('link', None)
+        avis = client_row.get('reviews', None)
+        note = client_row.get('rating', None)
+        st.sidebar.markdown(f"**Catégorie :** {cat if cat else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Site web :** {'[Site](' + site + ')' if site else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + email + ')' if email else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + link + ')' if link else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Avis :** {avis if avis else 'Non renseigné'} | **Note :** {note if note else 'Non renseigné'}")
         if st.sidebar.button("Fermer", key="close_client_details"):
             st.session_state['show_client_details'] = None
             st.rerun() 
