@@ -139,9 +139,13 @@ else:
         "Nom", "Téléphone", "Adresse", "Dernier contact", "Récurrence", "À encaisser", "Facturé", "Coût par heure", "Commandes", "En savoir plus"
     ]
     st.markdown("""
-    <style> .table-header {font-weight:bold;} </style>
+    <style>
+    .table-header {font-weight:bold;}
+    .element-container:has(.table-header), .element-container:has(button) {min-width: 120px !important; max-width: 300px !important;}
+    </style>
     """, unsafe_allow_html=True)
-    cols = st.columns([2,2,2,2,1,1,1,1,2,1])
+    # Largeurs adaptées : nom, adresse, commandes plus larges
+    cols = st.columns([2.5,1.5,2.5,1.5,1,1,1,1,2.5,1])
     for i, h in enumerate(headers):
         cols[i].markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
     # Affichage des lignes
@@ -153,7 +157,7 @@ else:
         a_encaisser = 0
         facture = 0
         rec = ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist()))
-        line_cols = st.columns([2,2,2,2,1,1,1,1,2,1])
+        line_cols = st.columns([2.5,1.5,2.5,1.5,1,1,1,1,2.5,1])
         line_cols[0].write(row['name'])
         line_cols[1].write(row['phone'])
         line_cols[2].write(row['address'])
