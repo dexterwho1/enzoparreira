@@ -234,9 +234,11 @@ if page == "Prospection":
             df_affiche = df_affiche[df_affiche['statut_appel'] == filtre_rapide]
         # Affichage du tableau avec colonnes dédiées
         if filtre_rapide != "Tous":
-            col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details = st.columns([1,3,2,3,2,2,2])
+            col_sel, col_indiv, col_nom, col_cat, col_adr, col_tel, col_date, col_details = st.columns([1,1,3,2,3,2,2,2])
             with col_sel:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
+            with col_indiv:
+                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélection individuelle</b></div>", unsafe_allow_html=True)
             with col_nom:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
             with col_cat:
@@ -250,7 +252,7 @@ if page == "Prospection":
             with col_details:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
             for i, row in df_affiche.iterrows():
-                cols = st.columns([1,3,2,3,2,2,2])
+                cols = st.columns([1,1,3,2,3,2,2,2])
                 with cols[0]:
                     checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
                     if checked:
@@ -258,23 +260,39 @@ if page == "Prospection":
                     else:
                         selection.discard(row['place_id'])
                 with cols[1]:
+                    checked_indiv = st.checkbox("", value=False, key=f"indiv_{row['place_id']}")
+                with cols[2]:
                     if st.button(row['name'], key=f"nom_{row['place_id']}"):
                         st.session_state['show_transfer'] = row['place_id']
-                with cols[2]:
-                    st.write(row['main_category'])
                 with cols[3]:
-                    st.write(row['address'])
+                    st.write(row['main_category'])
                 with cols[4]:
-                    st.write(row['phone'])
+                    st.write(row['address'])
                 with cols[5]:
-                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+                    st.write(row['phone'])
                 with cols[6]:
+                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+                with cols[7]:
                     if st.button("Détails", key=f"details_{row['place_id']}"):
                         st.session_state['show_details'] = row['place_id']
+            # Changement de statut pour sélection individuelle
+            if st.sidebar.button("Appliquer statut à la sélection individuelle", key="appliquer_statut_indiv"):
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    for _, row in df_affiche.iterrows():
+                        if st.session_state.get(f"indiv_{row['place_id']}", False):
+                            c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
+                                    (statut, now, row['place_id']))
+                    conn.commit()
+                st.success("Statut appliqué à la sélection individuelle.")
+                st.experimental_rerun()
         else:
-            col_sel, col_nom, col_cat, col_adr, col_tel, col_details = st.columns([1,3,2,3,2,2])
+            col_sel, col_indiv, col_nom, col_cat, col_adr, col_tel, col_date, col_details = st.columns([1,1,3,2,3,2,2,2])
             with col_sel:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
+            with col_indiv:
+                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélection individuelle</b></div>", unsafe_allow_html=True)
             with col_nom:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
             with col_cat:
@@ -283,10 +301,12 @@ if page == "Prospection":
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Adresse</b></div>", unsafe_allow_html=True)
             with col_tel:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Téléphone</b></div>", unsafe_allow_html=True)
+            with col_date:
+                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Date action</b></div>", unsafe_allow_html=True)
             with col_details:
                 st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
             for i, row in df_affiche.iterrows():
-                cols = st.columns([1,3,2,3,2,2])
+                cols = st.columns([1,1,3,2,3,2,2,2])
                 with cols[0]:
                     checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
                     if checked:
@@ -294,15 +314,19 @@ if page == "Prospection":
                     else:
                         selection.discard(row['place_id'])
                 with cols[1]:
+                    checked_indiv = st.checkbox("", value=False, key=f"indiv_{row['place_id']}")
+                with cols[2]:
                     if st.button(row['name'], key=f"nom_{row['place_id']}"):
                         st.session_state['show_transfer'] = row['place_id']
-                with cols[2]:
-                    st.write(row['main_category'])
                 with cols[3]:
-                    st.write(row['address'])
+                    st.write(row['main_category'])
                 with cols[4]:
-                    st.write(row['phone'])
+                    st.write(row['address'])
                 with cols[5]:
+                    st.write(row['phone'])
+                with cols[6]:
+                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+                with cols[7]:
                     if st.button("Détails", key=f"details_{row['place_id']}"):
                         st.session_state['show_details'] = row['place_id']
         st.session_state['selection'] = selection
