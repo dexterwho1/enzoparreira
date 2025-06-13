@@ -141,14 +141,15 @@ else:
     st.markdown("""
     <style>
     .table-header {font-weight:bold;}
-    .element-container:has(.table-header), .element-container:has(button) {min-width: 120px !important; max-width: 300px !important;}
+    .scroll-table {overflow-x: auto; width: 100%;}
+    .element-container:has(.table-header), .element-container:has(button) {min-width: 90px !important; max-width: 220px !important;}
     </style>
+    <div class='scroll-table'>
     """, unsafe_allow_html=True)
-    # Largeurs adaptées : nom, adresse, commandes plus larges
-    cols = st.columns([2.5,1.5,2.5,1.5,1,1,1,1,2.5,1])
+    # Largeurs adaptées : nom, adresse, commandes plus larges, autres plus petites
+    cols = st.columns([2.2,1.2,2.2,1.2,0.8,0.8,0.8,0.8,2,0.8])
     for i, h in enumerate(headers):
         cols[i].markdown(f"<div class='table-header'>{h}</div>", unsafe_allow_html=True)
-    # Affichage des lignes
     for _, row in df.iterrows():
         client_id = row['client_id']
         prestations = commandes[commandes['client_id'] == client_id]['prestation'].tolist()
@@ -157,7 +158,7 @@ else:
         a_encaisser = 0
         facture = 0
         rec = ', '.join(set(commandes[commandes['client_id'] == client_id]['recurrence'].dropna().astype(str).tolist()))
-        line_cols = st.columns([2.5,1.5,2.5,1.5,1,1,1,1,2.5,1])
+        line_cols = st.columns([2.2,1.2,2.2,1.2,0.8,0.8,0.8,0.8,2,0.8])
         line_cols[0].write(row['name'])
         line_cols[1].write(row['phone'])
         line_cols[2].write(row['address'])
@@ -170,6 +171,7 @@ else:
         voir_key = f"voir_{client_id}"
         if line_cols[9].button("Voir", key=voir_key):
             st.session_state['show_client_details'] = client_id
+    st.markdown("</div>", unsafe_allow_html=True)
     # Affichage des détails dans la sidebar
     show_client_details = st.session_state.get('show_client_details', None)
     if show_client_details:
