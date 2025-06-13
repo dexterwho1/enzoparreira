@@ -219,12 +219,18 @@ if page == "Prospection":
         if not isinstance(selection, set):
             selection = set()
         all_ids = df['place_id'].tolist()
+        
+        # Initialiser la sélection individuelle si elle n'existe pas
+        if 'selected_individual' not in st.session_state:
+            st.session_state['selected_individual'] = None
+            
         # Affichage de la case 'Tout sélectionner' au-dessus du tableau
         select_all = st.checkbox("Tout sélectionner pour bulk", value=len(selection)==len(all_ids) and len(all_ids)>0, key="select_all_checkbox")
         if select_all and len(selection) != len(all_ids):
             selection = set(all_ids)
         elif not select_all and len(selection) == len(all_ids):
             selection = set()
+            
         # --- Filtre d'appel rapide (menu à droite) ---
         st.write("")
         st.markdown("**Filtrer par statut d'appel (rapide) :**")
@@ -232,146 +238,95 @@ if page == "Prospection":
         df_affiche = df.copy()
         if filtre_rapide != "Tous":
             df_affiche = df_affiche[df_affiche['statut_appel'] == filtre_rapide]
+            
         # Affichage du tableau avec colonnes dédiées
-        if filtre_rapide != "Tous":
-            col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details, col_indiv = st.columns([1,3,2,3,2,2,2,1])
-            with col_sel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
-            with col_nom:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
-            with col_cat:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Catégorie</b></div>", unsafe_allow_html=True)
-            with col_adr:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Adresse</b></div>", unsafe_allow_html=True)
-            with col_tel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Téléphone</b></div>", unsafe_allow_html=True)
-            with col_date:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Date action</b></div>", unsafe_allow_html=True)
-            with col_details:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
-            with col_indiv:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Indiv.</b></div>", unsafe_allow_html=True)
-            for i, row in df_affiche.iterrows():
-                cols = st.columns([1,3,2,3,2,2,2,1])
-                with cols[0]:
-                    checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
-                    if checked:
-                        selection.add(row['place_id'])
+        col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details, col_statut = st.columns([1,3,2,3,2,2,2,2])
+        with col_sel:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
+        with col_nom:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
+        with col_cat:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Catégorie</b></div>", unsafe_allow_html=True)
+        with col_adr:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Adresse</b></div>", unsafe_allow_html=True)
+        with col_tel:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Téléphone</b></div>", unsafe_allow_html=True)
+        with col_date:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Date action</b></div>", unsafe_allow_html=True)
+        with col_details:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
+        with col_statut:
+            st.markdown("<div style='text-align:center;white-space:nowrap'><b>Statut d'appel</b></div>", unsafe_allow_html=True)
+            
+        for i, row in df_affiche.iterrows():
+            cols = st.columns([1,3,2,3,2,2,2,2])
+            with cols[0]:
+                checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
+                if checked:
+                    selection.add(row['place_id'])
+                else:
+                    selection.discard(row['place_id'])
+            with cols[1]:
+                if st.button(row['name'], key=f"nom_{row['place_id']}"):
+                    st.session_state['show_transfer'] = row['place_id']
+            with cols[2]:
+                st.write(row['main_category'])
+            with cols[3]:
+                st.write(row['address'])
+            with cols[4]:
+                st.write(row['phone'])
+            with cols[5]:
+                st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
+            with cols[6]:
+                if st.button("Détails", key=f"details_{row['place_id']}"):
+                    st.session_state['show_details'] = row['place_id']
+            with cols[7]:
+                # Sélection individuelle exclusive avec logique de toggle
+                current_selected = st.session_state.get('selected_individual', None)
+                is_selected = current_selected == row['place_id']
+                
+                if st.button("Changer statut", key=f"statut_btn_{row['place_id']}"):
+                    if is_selected:
+                        # Si déjà sélectionné, on désélectionne
+                        st.session_state['selected_individual'] = None
                     else:
-                        selection.discard(row['place_id'])
-                with cols[1]:
-                    if st.button(row['name'], key=f"nom_{row['place_id']}"):
-                        st.session_state['show_transfer'] = row['place_id']
-                with cols[2]:
-                    st.write(row['main_category'])
-                with cols[3]:
-                    st.write(row['address'])
-                with cols[4]:
-                    st.write(row['phone'])
-                with cols[5]:
-                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
-                with cols[6]:
-                    if st.button("Détails", key=f"details_{row['place_id']}"):
-                        st.session_state['show_details'] = row['place_id']
-                with cols[7]:
-                    # Sélection individuelle exclusive
-                    individuel = st.checkbox("", value=False, key=f"indiv_{row['place_id']}")
-                    if individuel:
-                        # Désélectionner tous les autres
-                        for pid in df_affiche['place_id']:
-                            if pid != row['place_id']:
-                                st.session_state[f"indiv_{pid}"] = False
-            # Changement de statut pour sélection individuelle
-            if st.sidebar.button("Appliquer statut à la sélection individuelle", key="appliquer_statut_indiv"):
-                with sqlite3.connect(DB_PATH) as conn:
-                    c = conn.cursor()
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    # Trouver le prospect sélectionné individuellement
-                    selected_indiv = None
-                    for _, row in df_affiche.iterrows():
-                        if st.session_state.get(f"indiv_{row['place_id']}", False):
-                            selected_indiv = row['place_id']
-                            break
-                    if selected_indiv:
-                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
-                                (statut, now, selected_indiv))
-                        conn.commit()
-                        st.success("Statut appliqué au prospect sélectionné.")
-                        # Désélectionner après application
-                        st.session_state[f"indiv_{selected_indiv}"] = False
-                    else:
-                        st.warning("Aucun prospect sélectionné individuellement.")
-                st.experimental_rerun()
-        else:
-            col_sel, col_nom, col_cat, col_adr, col_tel, col_date, col_details, col_indiv = st.columns([1,3,2,3,2,2,2,1])
-            with col_sel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Sélectionner</b></div>", unsafe_allow_html=True)
-            with col_nom:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Nom</b></div>", unsafe_allow_html=True)
-            with col_cat:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Catégorie</b></div>", unsafe_allow_html=True)
-            with col_adr:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Adresse</b></div>", unsafe_allow_html=True)
-            with col_tel:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Téléphone</b></div>", unsafe_allow_html=True)
-            with col_date:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Date action</b></div>", unsafe_allow_html=True)
-            with col_details:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Détails</b></div>", unsafe_allow_html=True)
-            with col_indiv:
-                st.markdown("<div style='text-align:center;white-space:nowrap'><b>Indiv.</b></div>", unsafe_allow_html=True)
-            for i, row in df_affiche.iterrows():
-                cols = st.columns([1,3,2,3,2,2,2,1])
-                with cols[0]:
-                    checked = st.checkbox("", value=row['place_id'] in selection, key=f"sel_{row['place_id']}")
-                    if checked:
-                        selection.add(row['place_id'])
-                    else:
-                        selection.discard(row['place_id'])
-                with cols[1]:
-                    if st.button(row['name'], key=f"nom_{row['place_id']}"):
-                        st.session_state['show_transfer'] = row['place_id']
-                with cols[2]:
-                    st.write(row['main_category'])
-                with cols[3]:
-                    st.write(row['address'])
-                with cols[4]:
-                    st.write(row['phone'])
-                with cols[5]:
-                    st.write(row['date_dernier_appel'] if row['date_dernier_appel'] else "-")
-                with cols[6]:
-                    if st.button("Détails", key=f"details_{row['place_id']}"):
-                        st.session_state['show_details'] = row['place_id']
-                with cols[7]:
-                    # Sélection individuelle exclusive
-                    individuel = st.checkbox("", value=False, key=f"indiv_{row['place_id']}")
-                    if individuel:
-                        # Désélectionner tous les autres
-                        for pid in df_affiche['place_id']:
-                            if pid != row['place_id']:
-                                st.session_state[f"indiv_{pid}"] = False
-            # Changement de statut pour sélection individuelle
-            if st.sidebar.button("Appliquer statut à la sélection individuelle", key="appliquer_statut_indiv"):
-                with sqlite3.connect(DB_PATH) as conn:
-                    c = conn.cursor()
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    # Trouver le prospect sélectionné individuellement
-                    selected_indiv = None
-                    for _, row in df_affiche.iterrows():
-                        if st.session_state.get(f"indiv_{row['place_id']}", False):
-                            selected_indiv = row['place_id']
-                            break
-                    if selected_indiv:
-                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
-                                (statut, now, selected_indiv))
-                        conn.commit()
-                        st.success("Statut appliqué au prospect sélectionné.")
-                        # Désélectionner après application
-                        st.session_state[f"indiv_{selected_indiv}"] = False
-                    else:
-                        st.warning("Aucun prospect sélectionné individuellement.")
-                st.experimental_rerun()
+                        # Sinon on sélectionne ce prospect
+                        st.session_state['selected_individual'] = row['place_id']
+                        st.session_state['show_statut_popup'] = row['place_id']
+                    st.experimental_rerun()
+                    
+                # Afficher le statut actuel
+                if row['statut_appel']:
+                    st.write(f"📞 {row['statut_appel']}")
+                else:
+                    st.write("❌ Non défini")
+
         st.session_state['selection'] = selection
+
+        # --- Popup pour changer le statut d'appel individuellement ---
+        show_statut_popup = st.session_state.get('show_statut_popup', None)
+        if show_statut_popup:
+            prospect_popup = df[df['place_id'] == show_statut_popup].iloc[0]
+            st.sidebar.subheader(f"Changer le statut d'appel pour {prospect_popup['name']}")
+            st.sidebar.markdown(f"**Statut actuel :** {prospect_popup['statut_appel'] if prospect_popup['statut_appel'] else 'Non défini'}")
+            
+            for statut in STATUTS:
+                if st.sidebar.button(f"✅ {statut}", key=f"popup_statut_{statut}_{show_statut_popup}"):
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
+                                (statut, now, show_statut_popup))
+                        conn.commit()
+                    st.success(f"Statut '{statut}' appliqué à {prospect_popup['name']}.")
+                    st.session_state['show_statut_popup'] = None
+                    st.session_state['selected_individual'] = None
+                    st.experimental_rerun()
+                    
+            if st.sidebar.button("❌ Annuler", key="cancel_statut_popup"):
+                st.session_state['show_statut_popup'] = None
+                st.session_state['selected_individual'] = None
+                st.experimental_rerun()
 
         # --- Panneau d'action à droite pour bulk ---
         if selection:
@@ -409,9 +364,7 @@ if page == "Prospection":
                 encaisse = st.number_input("Encaissé (optionnel)", min_value=0.0, step=10.0, value=0.0)
                 recurrence = st.selectbox("Récurrent (optionnel)", ["Non", "2 semaines", "1 mois"])
                 submit_transfer = st.form_submit_button("Transférer en client")
-            if st.sidebar.button("Fermer", key="close_transfer"):
-                st.session_state['show_transfer'] = None
-                st.experimental_rerun()
+                
                 if submit_transfer:
                     if not (date_debut and date_fin and prix):
                         st.error("Merci de remplir tous les champs obligatoires.")
@@ -451,6 +404,10 @@ if page == "Prospection":
                         st.success("Prospect transféré en client avec succès !")
                         st.session_state['show_transfer'] = None
                         st.experimental_rerun()
+                        
+            if st.sidebar.button("Fermer", key="close_transfer"):
+                st.session_state['show_transfer'] = None
+                st.experimental_rerun()
 
         # --- Affichage des détails dans un panneau latéral ---
         show_details = st.session_state.get('show_details', None)
@@ -478,5 +435,21 @@ if page == "Prospection":
                     st.experimental_rerun()
             if st.sidebar.button("Fermer", key="close_details"):
                 st.session_state['show_details'] = None
+                st.experimental_rerun()
 
-# ... le reste du code (autres pages) ...
+# Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
+elif page == "Dashboard":
+    st.title("Dashboard")
+    st.info("Page Dashboard à implémenter")
+    
+elif page == "CRM Clients":
+    st.title("CRM Clients")
+    st.info("Page CRM Clients à implémenter")
+    
+elif page == "Commandes":
+    st.title("Commandes")
+    st.info("Page Commandes à implémenter")
+    
+elif page == "Planning":
+    st.title("Planning")
+    st.info("Page Planning à implémenter")
