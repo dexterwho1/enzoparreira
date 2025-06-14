@@ -14,6 +14,14 @@ try:
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.read_sql_query("SELECT * FROM prospects", conn)
 
+    # Vérification colonne date_dernier_appel
+    if 'date_dernier_appel' not in df.columns:
+        st.warning("Aucune donnée d'appel trouvée (colonne 'date_dernier_appel' manquante)")
+        st.stop()
+
+    # Conversion robuste de la date
+    df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
+
     # Fonctions utilitaires pour les périodes
     now = datetime.now()
     today = now.date()
@@ -23,34 +31,30 @@ try:
     end_last_week = start_week - timedelta(days=1)
     start_month = today.replace(day=1)
 
-    # Helper pour filtrer par date - CORRIGÉ
+    # Helper pour filtrer par date
     def filter_by_period(df, col, start, end):
-        # Convertit les dates en datetime pour comparaison cohérente
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
-        # Convertit la colonne en datetime
-        df[col] = pd.to_datetime(df[col], errors='coerce')
-        # Filtre avec comparaison datetime
-        mask = (df[col] >= start_dt) & (df[col] <= end_dt)
+        # On ne garde que les lignes avec une date valide
+        mask = (df[col].notna()) & (df[col] >= start_dt) & (df[col] <= end_dt)
         return df[mask]
 
-    # Appels passés (on compte les prospects avec une date_dernier_appel non vide)
+    # Appels passés = toute ligne avec une date_dernier_appel non vide dans la période
     def count_calls(df, start, end):
-        return filter_by_period(df, 'date_dernier_appel', start, end).shape[0]
+        return filter_by_period(df, 'date_dernier_appel_dt', start, end).shape[0]
 
-    # RDV générés (exemple: statut_appel == 'r1' ou 'signé')
+    # RDV générés = statut_appel == 'r1' ou 'signé' dans la période
     def count_rdv(df, start, end):
-        filt = filter_by_period(df, 'date_dernier_appel', start, end)
+        filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
         return filt[filt['statut_appel'].isin(['r1', 'signé'])].shape[0]
 
-    # Clients estimés (statut_appel == 'signé')
+    # Clients estimés = statut_appel == 'signé' dans la période
     def count_clients(df, start, end):
-        filt = filter_by_period(df, 'date_dernier_appel', start, end)
+        filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
         return filt[filt['statut_appel'] == 'signé'].shape[0]
 
     # CA estimé (exemple: 0€ car pas de montant dans prospects)
     def ca_estime(df, start, end):
-        # Si tu as un champ montant, adapte ici
         return 0
 
     # Taux appel → RDV
@@ -102,9 +106,8 @@ try:
     else:
         st.info("Aucune catégorie principale trouvée dans les données.")
 
-    # Pipeline 4 semaines (appels) - CORRIGÉ
+    # Pipeline 4 semaines (appels)
     st.subheader("Pipeline 4 semaines (appels)")
-    df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
     four_weeks_ago = today - timedelta(days=28)
     four_weeks_ago_dt = pd.to_datetime(four_weeks_ago)
     pipeline = df[df['date_dernier_appel_dt'] >= four_weeks_ago_dt]
@@ -113,6 +116,7 @@ try:
         st.bar_chart(pipeline_stats)
     else:
         st.info("Aucun appel sur les 4 dernières semaines.")
+
 except Exception as e:
     st.error(f"Erreur dans KPI Prospection : {e}")
     st.text(traceback.format_exc()) 
