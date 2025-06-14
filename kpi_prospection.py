@@ -8,11 +8,16 @@ try:
 
     DB_PATH = "crm_data.db"
 
-    st.title("KPI Prospection")
+    st.title("KPI Prospection (DEBUG)")
 
     # Récupération des données
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.read_sql_query("SELECT * FROM prospects", conn)
+
+    st.write("[DEBUG] Shape df:", df.shape)
+    st.write("[DEBUG] Colonnes:", list(df.columns))
+    if not df.empty:
+        st.write("[DEBUG] Extrait df:", df.head())
 
     # Vérification colonne date_dernier_appel
     if 'date_dernier_appel' not in df.columns or df.empty:
@@ -21,10 +26,14 @@ try:
 
     # Conversion robuste de la date
     df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
+    st.write("[DEBUG] date_dernier_appel_dt min:", df['date_dernier_appel_dt'].min())
+    st.write("[DEBUG] date_dernier_appel_dt max:", df['date_dernier_appel_dt'].max())
+    st.write("[DEBUG] NAs dans date_dernier_appel_dt:", df['date_dernier_appel_dt'].isna().sum())
 
     # Vérification colonne statut_appel
     if 'statut_appel' not in df.columns:
         df['statut_appel'] = None
+    st.write("[DEBUG] statut_appel uniques:", df['statut_appel'].unique())
 
     # Fonctions utilitaires pour les périodes
     now = datetime.now()
@@ -39,44 +48,61 @@ try:
     def filter_by_period(df, col, start, end):
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
-        # On ne garde que les lignes avec une date valide
         mask = (df[col].notna()) & (df[col] >= start_dt) & (df[col] <= end_dt)
+        st.write(f"[DEBUG] filter_by_period {col} {start} -> {end} : {mask.sum()} lignes gardées")
+        st.write("[DEBUG] Dates filtrées:", df.loc[mask, col].sort_values())
         return df[mask]
 
     # Appels passés = toute ligne avec une date_dernier_appel non vide dans la période
     def count_calls(df, start, end):
         if df.empty:
+            st.write("[DEBUG] count_calls: df vide")
             return 0
-        return filter_by_period(df, 'date_dernier_appel_dt', start, end).shape[0]
+        res = filter_by_period(df, 'date_dernier_appel_dt', start, end)
+        st.write(f"[DEBUG] count_calls {start} -> {end}: {res.shape[0]}")
+        return res.shape[0]
 
     # RDV générés = statut_appel == 'r1' ou 'signé' dans la période
     def count_rdv(df, start, end):
         if df.empty:
+            st.write("[DEBUG] count_rdv: df vide")
             return 0
         filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
         if 'statut_appel' not in filt.columns or filt.empty:
+            st.write("[DEBUG] count_rdv: pas de colonne ou df vide")
             return 0
-        return filt[filt['statut_appel'].fillna('').isin(['r1', 'signé'])].shape[0]
+        res = filt[filt['statut_appel'].fillna('').isin(['r1', 'signé'])]
+        st.write(f"[DEBUG] count_rdv {start} -> {end}: {res.shape[0]}")
+        st.write("[DEBUG] RDV générés:", res[['place_id','statut_appel','date_dernier_appel_dt']])
+        return res.shape[0]
 
     # Clients estimés = statut_appel == 'signé' dans la période
     def count_clients(df, start, end):
         if df.empty:
+            st.write("[DEBUG] count_clients: df vide")
             return 0
         filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
         if 'statut_appel' not in filt.columns or filt.empty:
+            st.write("[DEBUG] count_clients: pas de colonne ou df vide")
             return 0
-        return filt[filt['statut_appel'].fillna('') == 'signé'].shape[0]
+        res = filt[filt['statut_appel'].fillna('') == 'signé']
+        st.write(f"[DEBUG] count_clients {start} -> {end}: {res.shape[0]}")
+        st.write("[DEBUG] Clients estimés:", res[['place_id','statut_appel','date_dernier_appel_dt']])
+        return res.shape[0]
 
     # CA estimé (exemple: 0€ car pas de montant dans prospects)
     def ca_estime(df, start, end):
+        st.write(f"[DEBUG] ca_estime {start} -> {end}: 0")
         return 0
 
     # Taux appel → RDV
     def taux_appel_rdv(appels, rdv):
+        st.write(f"[DEBUG] taux_appel_rdv: appels={appels}, rdv={rdv}")
         return f"{(rdv/appels*100):.0f}%" if appels else "0%"
 
     # Taux RDV → client
     def taux_rdv_client(rdv, clients):
+        st.write(f"[DEBUG] taux_rdv_client: rdv={rdv}, clients={clients}")
         return f"{(clients/rdv*100):.0f}%" if rdv else "0%"
 
     # KPI par période
@@ -90,15 +116,19 @@ try:
 
     st.subheader("KPI Prospection")
     kpi_data = {p: count_calls(df, *d) for p, d in periods.items()}
+    st.write("[DEBUG] kpi_data:", kpi_data)
     st.write(pd.DataFrame([kpi_data], index=["Appels passés"]))
 
     rdv_data = {p: count_rdv(df, *d) for p, d in periods.items()}
+    st.write("[DEBUG] rdv_data:", rdv_data)
     st.write(pd.DataFrame([rdv_data], index=["RDV générés"]))
 
     clients_data = {p: count_clients(df, *d) for p, d in periods.items()}
+    st.write("[DEBUG] clients_data:", clients_data)
     st.write(pd.DataFrame([clients_data], index=["Clients estimés"]))
 
     ca_data = {p: ca_estime(df, *d) for p, d in periods.items()}
+    st.write("[DEBUG] ca_data:", ca_data)
     st.write(pd.DataFrame([ca_data], index=["CA estimé (€)"]))
 
     # Taux globaux
@@ -116,6 +146,7 @@ try:
             'place_id': 'count',
             'statut_appel': lambda x: (x.fillna('') == 'signé').sum()
         }).rename(columns={'place_id': 'Appels', 'statut_appel': 'Clients signés'})
+        st.write("[DEBUG] cat_stats:", cat_stats)
         st.dataframe(cat_stats)
     else:
         st.info("Aucune catégorie principale trouvée dans les données.")
@@ -125,8 +156,10 @@ try:
     four_weeks_ago = today - timedelta(days=28)
     four_weeks_ago_dt = pd.to_datetime(four_weeks_ago)
     pipeline = df[df['date_dernier_appel_dt'] >= four_weeks_ago_dt]
+    st.write(f"[DEBUG] pipeline shape: {pipeline.shape}")
     if not pipeline.empty:
         pipeline_stats = pipeline.groupby(pipeline['date_dernier_appel_dt'].dt.isocalendar().week).size()
+        st.write("[DEBUG] pipeline_stats:", pipeline_stats)
         st.bar_chart(pipeline_stats)
     else:
         st.info("Aucun appel sur les 4 dernières semaines.")
