@@ -33,7 +33,6 @@ def init_db():
         titre TEXT,
         description TEXT,
         date_debut DATETIME,
-        date_fin DATETIME,
         statut TEXT DEFAULT 'à faire',
         est_process BOOLEAN DEFAULT 0,
         service TEXT,
@@ -80,36 +79,6 @@ def get_tasks_for_period(start_date, end_date):
         """
         df = pd.read_sql_query(query, conn, params=(start_date, end_date))
     return df
-
-def get_task_hours(task):
-    start = pd.to_datetime(task['date_debut'])
-    end = pd.to_datetime(task['date_fin'])
-    
-    # Liste des heures pendant lesquelles la tâche est active
-    hours = []
-    current = start.replace(minute=0, second=0, microsecond=0)
-    end_hour = end.replace(minute=0, second=0, microsecond=0)
-    
-    while current <= end_hour:
-        if 8 <= current.hour <= 19:  # Heures de travail
-            hours.append(current.strftime('%H:00'))
-        current += timedelta(hours=1)
-    
-    return hours
-
-def get_task_days(task):
-    start = pd.to_datetime(task['date_debut']).date()
-    end = pd.to_datetime(task['date_fin']).date()
-    
-    # Liste des jours pendant lesquels la tâche est active
-    days = []
-    current = start
-    
-    while current <= end:
-        days.append(current)
-        current += timedelta(days=1)
-    
-    return days
 
 # Initialisation de la base de données
 init_db()
@@ -190,7 +159,7 @@ with tab1:
         
         # Heures travaillées
         df_heures = pd.read_sql_query("""
-            SELECT SUM((julianday(date_fin) - julianday(date_debut)) * 24) as hours
+            SELECT COUNT(*) as hours
             FROM taches
             WHERE date_debut >= ? AND date_debut < ?
             AND statut = 'terminé'
@@ -217,7 +186,7 @@ with tab1:
         st.metric("Tâches effectuées", df_taches.iloc[0]['count'])
     with col2:
         heures = df_heures.iloc[0]['hours']
-        st.metric("Heures travaillées", f"{heures if heures else 0:.1f}h")
+        st.metric("Heures travaillées", f"{heures if heures else 0}")
     with col3:
         st.metric("R1 effectués", df_r1.iloc[0]['count'])
     with col4:
@@ -312,47 +281,42 @@ with tab3:
     # Récupération des tâches de la semaine
     week_end = start_of_week + timedelta(days=7)
     week_tasks = get_tasks_for_period(start_of_week, week_end)
-    
-    # En-têtes des jours
+
+    # En-têtes des jours de la semaine
     cols = st.columns(7)
-    for i, day_offset in enumerate(range(7)):
-        current_day = start_of_week + timedelta(days=day_offset)
+    for i, jour in enumerate(JOURS_SEMAINE):
         with cols[i]:
-            st.write(f"**{current_day.strftime('%A %d/%m')}**")
+            current_day = start_of_week + timedelta(days=i)
+            st.markdown(f"**{jour} {current_day.strftime('%d/%m')}**")
     
     # Affichage du planning
     for hour in HEURES_TRAVAIL:
         st.write(f"**{hour}**")
         cols = st.columns(7)
-        
-        # Pour chaque jour de la semaine
         for i, day_offset in enumerate(range(7)):
             current_day = start_of_week + timedelta(days=day_offset)
             with cols[i]:
-                # Filtrer les tâches pour ce jour et cette heure
-                day_tasks = []
-                for _, task in week_tasks.iterrows():
-                    task_days = get_task_days(task)
-                    task_hours = get_task_hours(task)
-                    
-                    if current_day in task_days and hour in task_hours:
+                day_hour_tasks = week_tasks[
+                    (pd.to_datetime(week_tasks['date_debut']).dt.date == current_day.date()) &
+                    (pd.to_datetime(week_tasks['date_debut']).dt.strftime('%H:00') == hour)
+                ]
+                if not day_hour_tasks.empty:
+                    for _, task in day_hour_tasks.iterrows():
                         if (not search_week or 
                             search_week.lower() in str(task['client_name']).lower() or 
                             search_week.lower() in str(task['titre']).lower() or 
                             search_week.lower() in str(task['type_tache']).lower()):
                             if type_filter_week == "Tous" or type_filter_week == task['type_tache']:
-                                day_tasks.append(task)
-                
-                # Afficher les tâches
-                for task in day_tasks:
-                    start_time = pd.to_datetime(task['date_debut']).strftime('%H:%M')
-                    end_time = pd.to_datetime(task['date_fin']).strftime('%H:%M')
-                    st.info(f"{start_time}-{end_time}\n{task['titre']}\n{task['client_name'] if task['client_name'] else 'Process'}")
+                                st.info(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}")
 
-# Bouton d'ajout de tâche (flottant)
-st.sidebar.title("Ajouter une tâche")
-with st.sidebar:
+# Bouton flottant d'ajout de tâche
+if st.button("➕", help="Ajouter une tâche"):
+    st.session_state.show_task_form = True
+
+if 'show_task_form' in st.session_state and st.session_state.show_task_form:
     with st.form("new_task"):
+        st.subheader("Nouvelle tâche")
+        
         # Choix client/process
         est_process = st.checkbox("Process (sans client)")
         if not est_process:
@@ -378,25 +342,29 @@ with st.sidebar:
         type_tache = st.selectbox("Type de tâche", TYPES_TACHE)
         titre = st.text_input("Titre")
         description = st.text_area("Description")
-        date_debut = st.date_input("Date de début")
-        heure_debut = st.time_input("Heure de début")
-        date_fin = st.date_input("Date de fin")
-        heure_fin = st.time_input("Heure de fin")
+        date = st.date_input("Date")
+        heure = st.time_input("Heure")
         
-        if st.form_submit_button("Ajouter"):
-            if not titre:
-                st.error("Le titre est obligatoire")
-            else:
-                with sqlite3.connect(DB_PATH) as conn:
-                    c = conn.cursor()
-                    date_debut_complete = datetime.combine(date_debut, heure_debut)
-                    date_fin_complete = datetime.combine(date_fin, heure_fin)
-                    c.execute("""
-                        INSERT INTO taches (client_id, commande_id, type_tache, titre, description, 
-                                         date_debut, date_fin, est_process)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (client_id, commande_id, type_tache, titre, description, 
-                          date_debut_complete, date_fin_complete, est_process))
-                    conn.commit()
-                st.success("Tâche ajoutée avec succès !")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.form_submit_button("Ajouter"):
+                if not titre:
+                    st.error("Le titre est obligatoire")
+                else:
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        date_debut = datetime.combine(date, heure)
+                        c.execute("""
+                            INSERT INTO taches (client_id, commande_id, type_tache, titre, description, 
+                                            date_debut, est_process)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (client_id, commande_id, type_tache, titre, description, 
+                            date_debut, est_process))
+                        conn.commit()
+                    st.success("Tâche ajoutée avec succès !")
+                    st.session_state.show_task_form = False
+                    st.rerun()
+        with col2:
+            if st.form_submit_button("Annuler"):
+                st.session_state.show_task_form = False
                 st.rerun() 
