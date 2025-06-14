@@ -504,6 +504,10 @@ elif page == "KPI Prospection":
     with open("kpi_prospection.py", encoding="utf-8") as f:
         exec(f.read(), globals())
 
+elif page == "Planning":
+    with open("planning.py", encoding="utf-8") as f:
+        exec(f.read(), globals())
+
 # Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
 elif page == "Dashboard":
     st.title("Dashboard")
@@ -516,7 +520,3 @@ elif page == "CRM Clients":
 elif page == "Commandes":
     with open("commandes.py", encoding="utf-8") as f:
         exec(f.read(), globals())
-    
-elif page == "Planning":
-    st.title("Planning")
-    st.info("Page Planning à implémenter")
