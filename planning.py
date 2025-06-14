@@ -18,7 +18,7 @@ except:
 DB_PATH = "crm_data.db"
 TYPES_TACHE = ["tache", "r1", "maintenance", "upsell", "à rappeller"]
 JOURS_SEMAINE = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-HEURES_TRAVAIL = [f"{h:02d}:00" for h in range(8, 20)]  # De 8h à 19h
+HEURES_TRAVAIL = [f"{h:02d}:00" for h in range(24)]  # De 00h à 23h
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
