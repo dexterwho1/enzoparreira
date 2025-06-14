@@ -121,6 +121,27 @@ def afficher_details_client_sidebar(client_id):
         st.session_state['show_client_details'] = None
         st.rerun()
 
+# --- Fonction utilitaire pour afficher la fiche prospect dans la sidebar ---
+def afficher_details_prospect_sidebar(place_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(place_id,))
+    if df.empty:
+        st.sidebar.warning("Aucun prospect trouvé.")
+        return
+    prospect = df.iloc[0]
+    st.sidebar.subheader(f"Fiche prospect : {prospect.get('name', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Téléphone :** {prospect.get('phone', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Adresse :** {prospect.get('address', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Catégorie :** {prospect.get('main_category', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Site web :** {'[Site](' + prospect.get('website', '') + ')' if prospect.get('website', '') else 'Non renseigné'}")
+    st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + prospect.get('emails', '') + ')' if prospect.get('emails', '') else 'Non renseigné'}")
+    st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + prospect.get('link', '') + ')' if prospect.get('link', '') else 'Non renseigné'}")
+    st.sidebar.markdown(f"**Avis :** {prospect.get('reviews', 'Non renseigné')} | **Note :** {prospect.get('rating', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Statut appel :** {prospect.get('statut_appel', 'Non renseigné')}")
+    if st.sidebar.button("Fermer", key=f"close_prospect_details_{place_id}"):
+        st.session_state['show_client_details'] = None
+        st.rerun()
+
 # Initialisation de la base de données
 init_db()
 
@@ -352,9 +373,15 @@ with tab2:
                                                 st.session_state['retard_time'] = None
                                                 st.rerun()
 
-# En dehors de la boucle, affiche la sidebar si besoin
+# --- Affichage dynamique dans la sidebar depuis le planning ---
 if st.session_state.get('show_client_details'):
-    afficher_details_client_sidebar(st.session_state['show_client_details'])
+    client_id = st.session_state['show_client_details']
+    # On tente d'afficher la fiche client, sinon prospect
+    try:
+        afficher_details_client_sidebar(client_id)
+    except Exception:
+        # Si ce n'est pas un client_id, on tente comme place_id (prospect)
+        afficher_details_prospect_sidebar(client_id)
 
 with tab3:
     st.subheader("Planning hebdomadaire")
