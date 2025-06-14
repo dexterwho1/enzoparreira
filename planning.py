@@ -81,6 +81,36 @@ def get_tasks_for_period(start_date, end_date):
         df = pd.read_sql_query(query, conn, params=(start_date, end_date))
     return df
 
+def get_task_hours(task):
+    start = pd.to_datetime(task['date_debut'])
+    end = pd.to_datetime(task['date_fin'])
+    
+    # Liste des heures pendant lesquelles la tâche est active
+    hours = []
+    current = start.replace(minute=0, second=0, microsecond=0)
+    end_hour = end.replace(minute=0, second=0, microsecond=0)
+    
+    while current <= end_hour:
+        if 8 <= current.hour <= 19:  # Heures de travail
+            hours.append(current.strftime('%H:00'))
+        current += timedelta(hours=1)
+    
+    return hours
+
+def get_task_days(task):
+    start = pd.to_datetime(task['date_debut']).date()
+    end = pd.to_datetime(task['date_fin']).date()
+    
+    # Liste des jours pendant lesquels la tâche est active
+    days = []
+    current = start
+    
+    while current <= end:
+        days.append(current)
+        current += timedelta(days=1)
+    
+    return days
+
 # Initialisation de la base de données
 init_db()
 
@@ -283,25 +313,41 @@ with tab3:
     week_end = start_of_week + timedelta(days=7)
     week_tasks = get_tasks_for_period(start_of_week, week_end)
     
+    # En-têtes des jours
+    cols = st.columns(7)
+    for i, day_offset in enumerate(range(7)):
+        current_day = start_of_week + timedelta(days=day_offset)
+        with cols[i]:
+            st.write(f"**{current_day.strftime('%A %d/%m')}**")
+    
     # Affichage du planning
     for hour in HEURES_TRAVAIL:
         st.write(f"**{hour}**")
         cols = st.columns(7)
+        
+        # Pour chaque jour de la semaine
         for i, day_offset in enumerate(range(7)):
             current_day = start_of_week + timedelta(days=day_offset)
             with cols[i]:
-                day_hour_tasks = week_tasks[
-                    (pd.to_datetime(week_tasks['date_debut']).dt.date == current_day.date()) &
-                    (pd.to_datetime(week_tasks['date_debut']).dt.strftime('%H:00') == hour)
-                ]
-                if not day_hour_tasks.empty:
-                    for _, task in day_hour_tasks.iterrows():
+                # Filtrer les tâches pour ce jour et cette heure
+                day_tasks = []
+                for _, task in week_tasks.iterrows():
+                    task_days = get_task_days(task)
+                    task_hours = get_task_hours(task)
+                    
+                    if current_day in task_days and hour in task_hours:
                         if (not search_week or 
                             search_week.lower() in str(task['client_name']).lower() or 
                             search_week.lower() in str(task['titre']).lower() or 
                             search_week.lower() in str(task['type_tache']).lower()):
                             if type_filter_week == "Tous" or type_filter_week == task['type_tache']:
-                                st.info(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}")
+                                day_tasks.append(task)
+                
+                # Afficher les tâches
+                for task in day_tasks:
+                    start_time = pd.to_datetime(task['date_debut']).strftime('%H:%M')
+                    end_time = pd.to_datetime(task['date_fin']).strftime('%H:%M')
+                    st.info(f"{start_time}-{end_time}\n{task['titre']}\n{task['client_name'] if task['client_name'] else 'Process'}")
 
 # Bouton d'ajout de tâche (flottant)
 st.sidebar.title("Ajouter une tâche")
