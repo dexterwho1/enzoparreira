@@ -17,9 +17,15 @@ try:
 
     # --- Préparation des données ---
     # Dernier statut par prospect (y compris ceux devenus clients)
-    if not histo.empty:
+    if not histo.empty and 'date_changement' in histo.columns:
+        # Conversion robuste en datetime
         histo['date_changement'] = pd.to_datetime(histo['date_changement'], errors='coerce')
-        last_statut = histo.sort_values('date_changement').groupby('place_id').tail(1)
+        # Supprime les lignes avec date_changement invalide
+        histo = histo.dropna(subset=['date_changement'])
+        if not histo.empty:
+            last_statut = histo.sort_values('date_changement').groupby('place_id').tail(1)
+        else:
+            last_statut = pd.DataFrame(columns=['place_id','statut','date_changement'])
     else:
         last_statut = pd.DataFrame(columns=['place_id','statut','date_changement'])
 
@@ -44,9 +50,14 @@ try:
     place_ids_appel = set(histo['place_id'].unique()) | set(clients['place_id'].dropna().unique())
     # Pour les périodes, on regarde la date du dernier changement de statut
     last_statut_period = last_statut.copy()
-    last_statut_period['date'] = last_statut_period['date_changement'].dt.date
+    if not last_statut_period.empty and 'date_changement' in last_statut_period.columns:
+        last_statut_period['date'] = last_statut_period['date_changement'].dt.date
+    else:
+        last_statut_period['date'] = pd.Series(dtype='object')
 
     def count_appels_periode(start, end):
+        if last_statut_period.empty:
+            return 0
         mask = (last_statut_period['date'] >= start) & (last_statut_period['date'] <= end)
         return last_statut_period[mask]['place_id'].nunique() + clients[~clients['place_id'].isin(last_statut_period[mask]['place_id'])]['place_id'].nunique()
 
@@ -55,10 +66,13 @@ try:
     # --- Clients estimés ---
     def count_clients_periode(start, end):
         # On prend la date_conversion du client
-        if 'date_conversion' in clients.columns:
-            clients['date_conversion_dt'] = pd.to_datetime(clients['date_conversion'], errors='coerce')
-            mask = (clients['date_conversion_dt'].dt.date >= start) & (clients['date_conversion_dt'].dt.date <= end)
-            return clients[mask]['client_id'].nunique()
+        if 'date_conversion' in clients.columns and not clients.empty:
+            clients_copy = clients.copy()
+            clients_copy['date_conversion_dt'] = pd.to_datetime(clients_copy['date_conversion'], errors='coerce')
+            clients_copy = clients_copy.dropna(subset=['date_conversion_dt'])
+            if not clients_copy.empty:
+                mask = (clients_copy['date_conversion_dt'].dt.date >= start) & (clients_copy['date_conversion_dt'].dt.date <= end)
+                return clients_copy[mask]['client_id'].nunique()
         return 0
     clients_data = {p: count_clients_periode(*d) for p, d in periods.items()}
 
@@ -94,8 +108,8 @@ try:
     # --- Pipeline 4 semaines (appels) ---
     st.subheader("Pipeline 4 semaines (appels)")
     four_weeks_ago = today - timedelta(days=28)
-    if not last_statut.empty:
-        pipeline = last_statut[last_statut['date'] >= four_weeks_ago]
+    if not last_statut.empty and 'date' in last_statut_period.columns:
+        pipeline = last_statut_period[last_statut_period['date'] >= four_weeks_ago]
         if not pipeline.empty:
             pipeline_stats = pipeline.groupby(pipeline['date'].apply(lambda d: d.isocalendar()[1])).size()
             st.bar_chart(pipeline_stats)
