@@ -458,7 +458,8 @@ if page == "Prospection":
                 st.rerun()
 
 elif page == "KPI Prospection":
-    import kpi_prospection
+    with open("kpi_prospection.py", encoding="utf-8") as f:
+        exec(f.read(), globals())
 
 # Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
 elif page == "Dashboard":
