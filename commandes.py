@@ -25,7 +25,6 @@ with st.form("ajout_commande_form"):
     
     contact_choisi = st.selectbox("Client/Prospect *", ["Sélectionner..."] + all_contacts)
     nom_service = st.text_input("Nom du service *", "")
-    prestation = st.text_input("Description de la prestation", "")
     prix = st.number_input("Prix (€) *", min_value=0.0, step=10.0)
     date_debut = st.date_input("Date de début *", value=datetime.now())
     date_fin = st.date_input("Date de fin *", value=datetime.now())
@@ -65,12 +64,11 @@ with st.form("ajout_commande_form"):
             with sqlite3.connect(DB_PATH) as conn:
                 c = conn.cursor()
                 c.execute("""
-                    INSERT INTO commandes (client_id, nom_service, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO commandes (client_id, nom_service, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     client_id,
                     nom_service,
-                    prestation,
                     prix,
                     recurrence if recurrence != "Non" else None,
                     date_debut.strftime("%Y-%m-%d"),
@@ -108,7 +106,6 @@ with col4:
 df = commandes.copy()
 if filtre_txt:
     mask = (df['nom_service'].str.contains(filtre_txt, case=False, na=False) | 
-            df['prestation'].str.contains(filtre_txt, case=False, na=False) | 
             df['name'].str.contains(filtre_txt, case=False, na=False))
     df = df[mask]
 if filtre_client != "Tous":
@@ -145,8 +142,8 @@ if df.empty:
     st.info("Aucune commande trouvée.")
 else:
     st.write("")
-    headers = ["Client", "Nom du service", "Description", "Date début", "Date fin", "Prix", "Statut", "Action"]
-    col_widths = [2,2,2,1.5,1.5,1,1.5,1.5]
+    headers = ["Client", "Nom du service", "Date début", "Date fin", "Prix", "Statut", "Action"]
+    col_widths = [2,2,1.5,1.5,1,1.5,1.5]
     header_cols = st.columns(col_widths)
     for i, h in enumerate(headers):
         header_cols[i].markdown(f"**{h}**")
@@ -159,21 +156,20 @@ else:
         
         line_cols[0].write(row['name'])
         line_cols[1].write(row.get('nom_service', '-') or '-')
-        line_cols[2].write(row.get('prestation', '-') or '-')
-        line_cols[3].write(row['date_debut'])
-        line_cols[4].write(row['date_fin'])
-        line_cols[5].write(f"{row.get('prix', 0)} €")
+        line_cols[2].write(row['date_debut'])
+        line_cols[3].write(row['date_fin'])
+        line_cols[4].write(f"{row.get('prix', 0)} €")
         
         # Statut + case à cocher
         statut_color = 'green' if statut == 'Livré' else ('red' if statut == 'En retard' else 'orange')
         statut_label = f"<span style='color:{statut_color}'>{statut}</span>"
         if statut == "À l'heure" and jours != "-":
             statut_label += f" <span style='color:gray;font-size:0.9em'>({jours})</span>"
-        line_cols[6].markdown(statut_label, unsafe_allow_html=True)
+        line_cols[5].markdown(statut_label, unsafe_allow_html=True)
         
         # Checkbox pour marquer livré
         checked = is_livre
-        if line_cols[6].checkbox("", value=checked, key=f"livre_{row['commande_id']}"):
+        if line_cols[5].checkbox("", value=checked, key=f"livre_{row['commande_id']}"):
             if not is_livre:
                 with sqlite3.connect(DB_PATH) as conn:
                     c = conn.cursor()
@@ -189,7 +185,7 @@ else:
                 st.rerun()
         
         # Action (Modifier/Supprimer)
-        col_action = line_cols[7]
+        col_action = line_cols[6]
         if col_action.button("Modifier", key=f"mod_{row['commande_id']}"):
             st.session_state['edit_commande'] = row['commande_id']
         if col_action.button("Supprimer", key=f"del_{row['commande_id']}"):
@@ -201,11 +197,11 @@ else:
             st.rerun()
 
         # Gestion des erreurs
-        tel = row.get('tel', '')
-        tel_clean = re.sub(r"[^\d+]", "", tel)  # retire tout sauf chiffres et +
+        # tel = row.get('tel', '')
+        # tel_clean = re.sub(r"[^\d+]", "", tel)  # retire tout sauf chiffres et +
         # Gère les formats +33 7..., 07..., 06...
-        if tel_clean.startswith("+33"):
-            tel_clean = "0" + tel_clean[3:]
-        if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
-            st.error(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
-            continue 
+        # if tel_clean.startswith("+33"):
+        #     tel_clean = "0" + tel_clean[3:]
+        # if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
+        #     st.error(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
+        #     continue 

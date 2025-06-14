@@ -399,6 +399,7 @@ if page == "Prospection":
             prospect = df[df['place_id'] == show_transfer].iloc[0]
             st.sidebar.subheader(f"Transférer {prospect['name']} en client")
             with st.sidebar.form(f"form_transfer_{show_transfer}"):
+                nom_service = st.text_input("Nom du service *", "")
                 date_debut = st.date_input("Date de début *")
                 date_fin = st.date_input("Date de fin *")
                 prix = st.number_input("Prix *", min_value=0.0, step=10.0)
@@ -407,7 +408,7 @@ if page == "Prospection":
                 submit_transfer = st.form_submit_button("Transférer en client")
                 
                 if submit_transfer:
-                    if not (date_debut and date_fin and prix):
+                    if not (nom_service and date_debut and date_fin and prix):
                         st.error("Merci de remplir tous les champs obligatoires.")
                     else:
                         with sqlite3.connect(DB_PATH) as conn:
@@ -427,11 +428,11 @@ if page == "Prospection":
                             client_id = c.lastrowid
                             # Création de la commande
                             c.execute("""
-                                INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                                INSERT INTO commandes (client_id, nom_service, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             """, (
                                 client_id,
-                                prospect['main_category'],
+                                nom_service,
                                 prix,
                                 recurrence if recurrence != "Non" else None,
                                 date_debut.strftime("%Y-%m-%d"),
@@ -445,7 +446,7 @@ if page == "Prospection":
                         st.success("Prospect transféré en client avec succès !")
                         st.session_state['show_transfer'] = None
                         st.rerun()
-                        
+                
             if st.sidebar.button("Fermer", key="close_transfer"):
                 st.session_state['show_transfer'] = None
                 st.rerun()
