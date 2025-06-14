@@ -23,9 +23,15 @@ try:
     end_last_week = start_week - timedelta(days=1)
     start_month = today.replace(day=1)
 
-    # Helper pour filtrer par date
+    # Helper pour filtrer par date - CORRIGÉ
     def filter_by_period(df, col, start, end):
-        mask = pd.to_datetime(df[col], errors='coerce').dt.date.between(start, end)
+        # Convertit les dates en datetime pour comparaison cohérente
+        start_dt = pd.to_datetime(start)
+        end_dt = pd.to_datetime(end)
+        # Convertit la colonne en datetime
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+        # Filtre avec comparaison datetime
+        mask = (df[col] >= start_dt) & (df[col] <= end_dt)
         return df[mask]
 
     # Appels passés (on compte les prospects avec une date_dernier_appel non vide)
@@ -96,11 +102,12 @@ try:
     else:
         st.info("Aucune catégorie principale trouvée dans les données.")
 
-    # Pipeline 4 semaines (appels)
+    # Pipeline 4 semaines (appels) - CORRIGÉ
     st.subheader("Pipeline 4 semaines (appels)")
     df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
     four_weeks_ago = today - timedelta(days=28)
-    pipeline = df[df['date_dernier_appel_dt'].dt.date >= four_weeks_ago]
+    four_weeks_ago_dt = pd.to_datetime(four_weeks_ago)
+    pipeline = df[df['date_dernier_appel_dt'] >= four_weeks_ago_dt]
     if not pipeline.empty:
         pipeline_stats = pipeline.groupby(pipeline['date_dernier_appel_dt'].dt.isocalendar().week).size()
         st.bar_chart(pipeline_stats)
