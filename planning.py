@@ -243,7 +243,6 @@ with tab2:
         for i, day in enumerate(week):
             with cols[i]:
                 if day != 0:
-                    # Affiche le jour de la semaine + numéro (ex : Sam 14)
                     day_name = JOURS_SEMAINE[i]
                     st.write(f"**{day_name} {day}**")
                     day_tasks = tasks[pd.to_datetime(tasks['date_debut']).dt.day == day]
@@ -254,7 +253,34 @@ with tab2:
                                 search.lower() in str(task['titre']).lower() or 
                                 search.lower() in str(task['type_tache']).lower()):
                                 if type_filter == "Tous" or type_filter == task['type_tache']:
-                                    st.info(f"{task['titre']}")
+                                    key = f"task_{task['tache_id']}_mois"
+                                    if st.button(f"{task['titre']}", key=key):
+                                        st.session_state['selected_task'] = task['tache_id']
+                                    if st.session_state.get('selected_task') == task['tache_id']:
+                                        with st.form(f"form_{key}"):
+                                            st.write(f"**Action sur la tâche : {task['titre']}**")
+                                            action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"])
+                                            new_date = None
+                                            new_time = None
+                                            if action == "Retarder":
+                                                new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date())
+                                                new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time())
+                                            submitted = st.form_submit_button("Valider")
+                                            if submitted:
+                                                with sqlite3.connect(DB_PATH) as conn:
+                                                    c = conn.cursor()
+                                                    if action == "Marquer comme complétée":
+                                                        c.execute("UPDATE taches SET statut='terminé' WHERE tache_id=?", (task['tache_id'],))
+                                                    elif action == "Retarder" and new_date and new_time:
+                                                        from datetime import datetime
+                                                        new_dt = datetime.combine(new_date, new_time)
+                                                        c.execute("UPDATE taches SET date_debut=?, statut='à faire' WHERE tache_id=?", (new_dt, task['tache_id']))
+                                                    elif action == "Annuler":
+                                                        c.execute("DELETE FROM taches WHERE tache_id=?", (task['tache_id'],))
+                                                    conn.commit()
+                                                st.success("Action effectuée !")
+                                                st.session_state['selected_task'] = None
+                                                st.rerun()
 
 with tab3:
     st.subheader("Planning hebdomadaire")
