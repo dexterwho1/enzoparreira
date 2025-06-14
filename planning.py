@@ -4,9 +4,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 import calendar
 
-# Configuration de la page
-st.set_page_config(page_title="Planning", layout="wide")
-
 # Constantes
 DB_PATH = "crm_data.db"
 TYPES_TACHE = ["tache", "r1", "maintenance", "upsell", "à rappeller"]

@@ -6,6 +6,9 @@ from datetime import datetime
 import hashlib
 import re
 
+# Configuration de la page
+st.set_page_config(page_title="CRM Agence", layout="wide")
+
 # --- Initialisation de la base de données ---
 DB_PATH = "crm_data.db"
 
