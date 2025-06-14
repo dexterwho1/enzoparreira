@@ -243,7 +243,9 @@ with tab2:
         for i, day in enumerate(week):
             with cols[i]:
                 if day != 0:
-                    st.write(f"**{day}**")
+                    # Affiche le jour de la semaine + numéro (ex : Sam 14)
+                    day_name = JOURS_SEMAINE[i]
+                    st.write(f"**{day_name} {day}**")
                     day_tasks = tasks[pd.to_datetime(tasks['date_debut']).dt.day == day]
                     if not day_tasks.empty:
                         for _, task in day_tasks.iterrows():
