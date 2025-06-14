@@ -121,19 +121,30 @@ def afficher_details_client_sidebar(client_id):
         st.session_state['show_client_details'] = None
         st.rerun()
 
-# --- Fonction utilitaire pour afficher uniquement le numéro de téléphone du prospect dans la sidebar ---
-def afficher_details_prospect_sidebar(place_id):
+# --- Fonction utilitaire pour afficher uniquement le numéro de téléphone dans la sidebar (client ou prospect) ---
+def afficher_details_telephone_sidebar(id_):
+    # On tente d'abord comme client_id
     with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(place_id,))
-    if df.empty:
-        st.sidebar.warning("Aucun prospect trouvé.")
-        return
-    prospect = df.iloc[0]
-    st.sidebar.subheader(f"Prospect : {prospect.get('name', 'Non renseigné')}")
-    st.sidebar.markdown(f"**Téléphone :** {prospect.get('phone', 'Non renseigné')}")
-    if st.sidebar.button("Fermer", key=f"close_prospect_details_{place_id}"):
-        st.session_state['show_client_details'] = None
-        st.rerun()
+        df_client = pd.read_sql_query("SELECT * FROM clients WHERE client_id = ?", conn, params=(id_,))
+        if not df_client.empty:
+            client = df_client.iloc[0]
+            st.sidebar.subheader(f"Client : {client.get('name', 'Non renseigné')}")
+            st.sidebar.markdown(f"**Téléphone :** {client.get('phone', 'Non renseigné')}")
+            if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
+                st.session_state['show_client_details'] = None
+                st.rerun()
+            return
+        # Sinon, on tente comme place_id (prospect)
+        df_prospect = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(id_,))
+        if not df_prospect.empty:
+            prospect = df_prospect.iloc[0]
+            st.sidebar.subheader(f"Prospect : {prospect.get('name', 'Non renseigné')}")
+            st.sidebar.markdown(f"**Téléphone :** {prospect.get('phone', 'Non renseigné')}")
+            if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
+                st.session_state['show_client_details'] = None
+                st.rerun()
+            return
+    st.sidebar.warning("Aucun client ou prospect trouvé.")
 
 # Initialisation de la base de données
 init_db()
@@ -368,13 +379,7 @@ with tab2:
 
 # --- Affichage dynamique dans la sidebar depuis le planning ---
 if st.session_state.get('show_client_details'):
-    client_id = st.session_state['show_client_details']
-    # On tente d'afficher la fiche client, sinon prospect
-    try:
-        afficher_details_client_sidebar(client_id)
-    except Exception:
-        # Si ce n'est pas un client_id, on tente comme place_id (prospect)
-        afficher_details_prospect_sidebar(client_id)
+    afficher_details_telephone_sidebar(st.session_state['show_client_details'])
 
 with tab3:
     st.subheader("Planning hebdomadaire")
