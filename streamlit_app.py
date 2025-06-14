@@ -74,6 +74,13 @@ def init_db():
     except:
         pass  # La colonne existe déjà
     
+    # Correctif ponctuel : donner un nom de service par défaut aux commandes qui n'en ont pas
+    c.execute("""
+        UPDATE commandes
+        SET nom_service = 'Service par défaut'
+        WHERE nom_service IS NULL OR nom_service = ''
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -221,7 +228,7 @@ if page == "Prospection":
 
     st.header("Liste des prospects")
     # Filtres principaux (hors statut d'appel)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         filtre_nom = st.text_input("Rechercher par nom...")
     with col2:
@@ -230,6 +237,8 @@ if page == "Prospection":
         filtre_cat = st.text_input("Rechercher par catégorie...")
     with col4:
         filtre_adr = st.text_input("Rechercher par adresse...")
+    with col5:
+        filtre_appel = st.radio("Appelé ?", ["Tous", "Non appelé", "Appelé"], horizontal=True)
     
     # Récupération des prospects
     with sqlite3.connect(DB_PATH) as conn:
@@ -243,6 +252,13 @@ if page == "Prospection":
         df = df[df['main_category'].str.contains(filtre_cat, case=False, na=False)]
     if filtre_adr:
         df = df[df['address'].str.contains(filtre_adr, case=False, na=False)]
+
+    # Application du filtre 'Appelé / Non appelé'
+    if 'filtre_appel' in locals() and filtre_appel != "Tous":
+        if filtre_appel == "Appelé":
+            df = df[df['statut_appel'].fillna('') != '']
+        elif filtre_appel == "Non appelé":
+            df = df[df['statut_appel'].fillna('') == '']
 
     st.write("")
     st.subheader("Tableau des prospects")
