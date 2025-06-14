@@ -227,8 +227,8 @@ if page == "Prospection":
                         st.rerun()
 
     st.header("Liste des prospects")
-    # Filtres principaux (hors statut d'appel)
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Première ligne de filtres
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         filtre_nom = st.text_input("Rechercher par nom...")
     with col2:
@@ -237,8 +237,11 @@ if page == "Prospection":
         filtre_cat = st.text_input("Rechercher par catégorie...")
     with col4:
         filtre_adr = st.text_input("Rechercher par adresse...")
-    with col5:
-        filtre_appel = st.radio("Appelé ?", ["Tous", "Non appelé", "Appelé"], horizontal=True)
+    
+    # Deuxième ligne de filtres
+    st.write("")
+    st.markdown("**Filtrer par statut d'appel :**")
+    filtre_appel = st.radio("", ["Tous", "Non appelé", "Appelé"], horizontal=True, label_visibility="collapsed")
     
     # Récupération des prospects
     with sqlite3.connect(DB_PATH) as conn:
