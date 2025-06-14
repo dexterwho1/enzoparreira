@@ -73,25 +73,39 @@ if file:
     # Vérification des champs obligatoires
     erreurs = []
     lignes_valides = []
+    
+    def is_french_mobile(phone):
+        """Vérifie si le numéro est un mobile français valide"""
+        if not isinstance(phone, str) or not phone.strip():
+            return False
+        # Nettoie le numéro (supprime espaces, tirets, points)
+        phone_clean = re.sub(r'[\s\-\.]', '', phone.strip())
+        # Regex pour mobile français: 06/07 ou +336/+337 suivi de 8 chiffres
+        return bool(re.match(r'^(0|\+33)[67]\d{8}$', phone_clean))
+    
     for idx, row in df.iterrows():
         nom = str(row.get("name", "")).strip()
         tel = str(row.get("phone", "")).strip()
         adresse = str(row.get("address", "")).strip()
-        # Filtre numéro FR mobile
-        tel_clean = re.sub(r"[^\d+]", "", tel)  # retire tout sauf chiffres et +
-        # Gère les formats +33 7..., 07..., 06...
-        if tel_clean.startswith("+33"):
-            tel_clean = "0" + tel_clean[3:]
-        if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
-            erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
+        
+        # Filtre numéro mobile FR uniquement
+        if not is_french_mobile(tel):
+            erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337). Numéro: {tel}")
             continue
+            
         if not (nom and tel and adresse):
             erreurs.append(f"Ligne {idx+2} ignorée : nom/téléphone/adresse manquant.")
             continue
+            
+        # Normalise le numéro pour stockage (format 0X XX XX XX XX)
+        tel_clean = re.sub(r'[\s\-\.]', '', tel)
+        if tel_clean.startswith('+33'):
+            tel_clean = '0' + tel_clean[3:]
+        
         # Gestion du doublon : on met à jour si le téléphone existe déjà
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("SELECT * FROM prospects WHERE phone=?", (tel,))
+            c.execute("SELECT * FROM prospects WHERE phone=?", (tel_clean,))
             exists = c.fetchone()
             if exists:
                 # Mise à jour
@@ -114,7 +128,7 @@ if file:
                     str(row.get("featured_reviews", "")),
                     str(row.get("is_spending_on_ads", "")),
                     row.get("query", ""),
-                    tel
+                    tel_clean
                 ))
             else:
                 # Insertion
@@ -125,7 +139,7 @@ if file:
                     str(row.get("place_id", "")).strip(),
                     nom,
                     row.get("website", ""),
-                    tel,
+                    tel_clean,
                     row.get("emails", ""),
                     row.get("main_category", ""),
                     str(row.get("categories", "")),
