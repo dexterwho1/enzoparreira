@@ -335,7 +335,34 @@ with tab3:
                             search_week.lower() in str(task['titre']).lower() or 
                             search_week.lower() in str(task['type_tache']).lower()):
                             if type_filter_week == "Tous" or type_filter_week == task['type_tache']:
-                                st.info(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}")
+                                key = f"task_{task['tache_id']}_hebdo"
+                                if st.button(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}", key=key):
+                                    st.session_state['selected_task'] = task['tache_id']
+                                if st.session_state.get('selected_task') == task['tache_id']:
+                                    with st.form(f"form_{key}"):
+                                        st.write(f"**Action sur la tâche : {task['titre']}**")
+                                        action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"])
+                                        new_date = None
+                                        new_time = None
+                                        if action == "Retarder":
+                                            new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date())
+                                            new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time())
+                                        submitted = st.form_submit_button("Valider")
+                                        if submitted:
+                                            with sqlite3.connect(DB_PATH) as conn:
+                                                c = conn.cursor()
+                                                if action == "Marquer comme complétée":
+                                                    c.execute("UPDATE taches SET statut='terminé' WHERE tache_id=?", (task['tache_id'],))
+                                                elif action == "Retarder" and new_date and new_time:
+                                                    from datetime import datetime
+                                                    new_dt = datetime.combine(new_date, new_time)
+                                                    c.execute("UPDATE taches SET date_debut=?, statut='à faire' WHERE tache_id=?", (new_dt, task['tache_id']))
+                                                elif action == "Annuler":
+                                                    c.execute("DELETE FROM taches WHERE tache_id=?", (task['tache_id'],))
+                                                conn.commit()
+                                            st.success("Action effectuée !")
+                                            st.session_state['selected_task'] = None
+                                            st.rerun()
 
 # Bouton flottant d'ajout de tâche
 if st.button("➕", help="Ajouter une tâche"):
