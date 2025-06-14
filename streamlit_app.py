@@ -48,6 +48,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS commandes (
         commande_id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id INTEGER,
+        nom_service TEXT,
         prestation TEXT,
         prix REAL,
         recurrence TEXT,
@@ -55,6 +56,7 @@ def init_db():
         date_fin TEXT,
         argent_encaisse REAL,
         statut TEXT,
+        temps_passe TEXT,
         FOREIGN KEY(client_id) REFERENCES clients(client_id)
     )''')
     # Table historique des statuts
@@ -62,8 +64,16 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         place_id TEXT,
         statut TEXT,
-        date_changement TEXT
+        date_changement TEXT,
+        FOREIGN KEY (place_id) REFERENCES prospects (place_id)
     )''')
+    
+    # Ajouter la colonne nom_service si elle n'existe pas
+    try:
+        c.execute("ALTER TABLE commandes ADD COLUMN nom_service TEXT")
+    except:
+        pass  # La colonne existe déjà
+    
     conn.commit()
     conn.close()
 

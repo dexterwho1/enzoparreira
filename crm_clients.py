@@ -26,11 +26,12 @@ with sqlite3.connect(DB_PATH) as conn:
             ))
             client_id = c.lastrowid
             c.execute("""
-                INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO commandes (client_id, nom_service, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 client_id,
                 main_category or "Service fictif",
+                "Description du service fictif",
                 100.0,
                 "1 mois",
                 datetime.now().strftime("%Y-%m-%d"),
@@ -73,10 +74,11 @@ with st.form("ajout_client_form"):
                 ))
                 client_id = c.lastrowid
                 c.execute("""
-                    INSERT INTO commandes (client_id, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO commandes (client_id, nom_service, prestation, prix, recurrence, date_debut, date_fin, argent_encaisse, statut)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     client_id,
+                    "Service manuel",
                     "Service manuel",
                     prix,
                     recurrence if recurrence != "Non" else None,
@@ -145,7 +147,7 @@ else:
     # Affichage des lignes
     for _, row in df.iterrows():
         client_id = row['client_id']
-        prestations = ', '.join(commandes[commandes['client_id'] == client_id]['prestation'].tolist())
+        prestations = ', '.join(commandes[commandes['client_id'] == client_id]['nom_service'].tolist())
         dernier_contact = row['last_contact'] if 'last_contact' in row else "-"
         cout_heure = "-"
         a_encaisser = "0"
@@ -173,22 +175,37 @@ else:
         st.sidebar.markdown(f"**Adresse :** {client_row.get('address', 'Non renseigné')}")
         st.sidebar.markdown(f"**Dernier contact :** {client_row.get('last_contact', 'Non renseigné')}")
         st.sidebar.markdown(f"**Date conversion :** {client_row.get('date_conversion', 'Non renseigné')}")
-        st.sidebar.markdown(f"**Récurrence :** {rec or 'Non renseigné'}")
-        st.sidebar.markdown(f"**À encaisser :** {a_encaisser}")
-        st.sidebar.markdown(f"**Facturé :** {facture}")
-        st.sidebar.markdown(f"**Coût par heure :** {cout_heure}")
-        st.sidebar.markdown(f"**Commandes :** {', '.join(prestations) or 'Non renseigné'}")
-        cat = client_row.get('main_category', None)
-        site = client_row.get('website', None)
-        email = client_row.get('emails', None)
-        link = client_row.get('link', None)
-        avis = client_row.get('reviews', None)
-        note = client_row.get('rating', None)
-        st.sidebar.markdown(f"**Catégorie :** {cat if cat else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Site web :** {'[Site](' + site + ')' if site else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + email + ')' if email else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + link + ')' if link else 'Non renseigné'}")
-        st.sidebar.markdown(f"**Avis :** {avis if avis else 'Non renseigné'} | **Note :** {note if note else 'Non renseigné'}")
+        
+        # Commandes du client
+        client_commandes = commandes[commandes['client_id'] == show_client_details]
+        if not client_commandes.empty:
+            st.sidebar.markdown("**Commandes :**")
+            for _, cmd in client_commandes.iterrows():
+                statut = cmd.get('statut', 'En cours')
+                statut_color = 'green' if statut == 'livré' else 'orange'
+                st.sidebar.markdown(f"• **{cmd.get('nom_service', 'Sans nom')}** - {cmd.get('prix', 0)}€ - <span style='color:{statut_color}'>{statut}</span>", unsafe_allow_html=True)
+                if cmd.get('prestation'):
+                    st.sidebar.markdown(f"  *{cmd.get('prestation')}*")
+                st.sidebar.markdown(f"  Du {cmd.get('date_debut')} au {cmd.get('date_fin')}")
+        else:
+            st.sidebar.markdown("**Aucune commande**")
+        
+        # Informations prospect (si applicable)
+        if client_row.get('place_id'):
+            cat = client_row.get('main_category', None)
+            site = client_row.get('website', None)
+            email = client_row.get('emails', None)
+            link = client_row.get('link', None)
+            avis = client_row.get('reviews', None)
+            note = client_row.get('rating', None)
+            st.sidebar.markdown("---")
+            st.sidebar.markdown("**Informations prospect :**")
+            st.sidebar.markdown(f"**Catégorie :** {cat if cat else 'Non renseigné'}")
+            st.sidebar.markdown(f"**Site web :** {'[Site](' + site + ')' if site else 'Non renseigné'}")
+            st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + email + ')' if email else 'Non renseigné'}")
+            st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + link + ')' if link else 'Non renseigné'}")
+            st.sidebar.markdown(f"**Avis :** {avis if avis else 'Non renseigné'} | **Note :** {note if note else 'Non renseigné'}")
+        
         if st.sidebar.button("Fermer", key="close_client_details"):
             st.session_state['show_client_details'] = None
             st.rerun() 
