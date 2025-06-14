@@ -254,13 +254,11 @@ with tab2:
                                 search.lower() in str(task['type_tache']).lower()):
                                 if type_filter == "Tous" or type_filter == task['type_tache']:
                                     key = f"task_{task['tache_id']}_mois"
-                                    # Affichage visuel selon le statut
                                     if task.get('statut') == 'terminé':
                                         style = "background-color:#d4edda;color:#155724;font-weight:bold;border-radius:6px;padding:2px 6px;"
                                     else:
                                         style = "background-color:#fff3cd;color:#856404;border-radius:6px;padding:2px 6px;"
                                     if st.button(f"{task['titre']}", key=key):
-                                        # Si on clique sur une autre tâche, on réinitialise tout le state
                                         if st.session_state.get('selected_task') != task['tache_id']:
                                             st.session_state['selected_task'] = task['tache_id']
                                             st.session_state['selected_action'] = None
@@ -270,8 +268,11 @@ with tab2:
                                     if st.session_state.get('selected_task') == task['tache_id']:
                                         with st.form(f"form_{key}"):
                                             st.write(f"**Action sur la tâche : {task['titre']}**")
-                                            action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"],
-                                                             index=["Marquer comme complétée", "Retarder", "Annuler"].index(st.session_state.get('selected_action', "Marquer comme complétée")))
+                                            actions = ["Marquer comme complétée", "Retarder", "Annuler"]
+                                            selected_action = st.session_state.get('selected_action')
+                                            if selected_action not in actions:
+                                                selected_action = actions[0]
+                                            action = st.radio("Action", actions, index=actions.index(selected_action))
                                             st.session_state['selected_action'] = action
                                             if action == "Retarder":
                                                 retard_date = st.date_input("Nouvelle date", value=st.session_state.get('retard_date', pd.to_datetime(task['date_debut']).date()), key=f"date_{key}")
@@ -376,8 +377,11 @@ with tab3:
                                 if st.session_state.get('selected_task') == task['tache_id']:
                                     with st.form(f"form_{key}"):
                                         st.write(f"**Action sur la tâche : {task['titre']}**")
-                                        action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"],
-                                                         index=["Marquer comme complétée", "Retarder", "Annuler"].index(st.session_state.get('selected_action', "Marquer comme complétée")))
+                                        actions = ["Marquer comme complétée", "Retarder", "Annuler"]
+                                        selected_action = st.session_state.get('selected_action')
+                                        if selected_action not in actions:
+                                            selected_action = actions[0]
+                                        action = st.radio("Action", actions, index=actions.index(selected_action))
                                         st.session_state['selected_action'] = action
                                         if action == "Retarder":
                                             retard_date = st.date_input("Nouvelle date", value=st.session_state.get('retard_date', pd.to_datetime(task['date_debut']).date()), key=f"date_{key}")
