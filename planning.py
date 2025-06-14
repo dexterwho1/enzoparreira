@@ -80,6 +80,47 @@ def get_tasks_for_period(start_date, end_date):
         df = pd.read_sql_query(query, conn, params=(start_date, end_date))
     return df
 
+# Fonction utilitaire pour afficher les détails client/prospect (extrait de crm_clients.py)
+def afficher_details_client_sidebar(client_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query("SELECT * FROM clients", conn)
+        commandes = pd.read_sql_query("SELECT * FROM commandes", conn)
+    client_row = df[df['client_id'] == client_id].iloc[0]
+    st.sidebar.subheader(f"Détails pour {client_row.get('name', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Téléphone :** {client_row.get('phone', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Adresse :** {client_row.get('address', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Dernier contact :** {client_row.get('last_contact', 'Non renseigné')}")
+    st.sidebar.markdown(f"**Date conversion :** {client_row.get('date_conversion', 'Non renseigné')}")
+    client_commandes = commandes[commandes['client_id'] == client_id]
+    if not client_commandes.empty:
+        st.sidebar.markdown("**Commandes :**")
+        for _, cmd in client_commandes.iterrows():
+            statut = cmd.get('statut', 'En cours')
+            statut_color = 'green' if statut == 'livré' else 'orange'
+            st.sidebar.markdown(f"• **{cmd.get('nom_service', 'Sans nom')}** - {cmd.get('prix', 0)}€ - <span style='color:{statut_color}'>{statut}</span>", unsafe_allow_html=True)
+            if cmd.get('prestation'):
+                st.sidebar.markdown(f"  *{cmd.get('prestation')}*")
+            st.sidebar.markdown(f"  Du {cmd.get('date_debut')} au {cmd.get('date_fin')}")
+    else:
+        st.sidebar.markdown("**Aucune commande**")
+    if client_row.get('place_id'):
+        cat = client_row.get('main_category', None)
+        site = client_row.get('website', None)
+        email = client_row.get('emails', None)
+        link = client_row.get('link', None)
+        avis = client_row.get('reviews', None)
+        note = client_row.get('rating', None)
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**Informations prospect :**")
+        st.sidebar.markdown(f"**Catégorie :** {cat if cat else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Site web :** {'[Site](' + site + ')' if site else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Email :** {'[Email](mailto:' + email + ')' if email else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + link + ')' if link else 'Non renseigné'}")
+        st.sidebar.markdown(f"**Avis :** {avis if avis else 'Non renseigné'} | **Note :** {note if note else 'Non renseigné'}")
+    if st.sidebar.button("Fermer", key="close_client_details_planning"):
+        st.session_state['show_client_details'] = None
+        st.rerun()
+
 # Initialisation de la base de données
 init_db()
 
@@ -264,6 +305,10 @@ with tab2:
                                             st.session_state['selected_action'] = "Marquer comme complétée"
                                             st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
                                             st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
+                                        # Affichage détails si type r1/upsell/rdv
+                                        if str(task.get('type_tache', '')).lower() in ['r1', 'upsell', 'rdv']:
+                                            if task.get('client_id'):
+                                                st.session_state['show_client_details'] = task['client_id']
                                     st.markdown(f'<div style="{style}">{task["titre"]}</div>', unsafe_allow_html=True)
                                     if st.session_state.get('selected_task') == task['tache_id']:
                                         st.write(f"**Action sur la tâche : {task['titre']}**")
@@ -306,6 +351,10 @@ with tab2:
                                                 st.session_state['retard_date'] = None
                                                 st.session_state['retard_time'] = None
                                                 st.rerun()
+
+# En dehors de la boucle, affiche la sidebar si besoin
+if st.session_state.get('show_client_details'):
+    afficher_details_client_sidebar(st.session_state['show_client_details'])
 
 with tab3:
     st.subheader("Planning hebdomadaire")
