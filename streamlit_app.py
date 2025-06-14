@@ -383,10 +383,50 @@ if page == "Prospection":
                     conn.commit()
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
+                st.session_state['planning_popup'] = {
+                    'place_id': show_statut_popup,
+                    'statut': statut_choisi
+                }
                 st.rerun()
             if st.sidebar.button("❌ Annuler", key="cancel_statut_popup"):
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
+                st.rerun()
+
+        # --- En dehors de la popup, si planning_popup est défini, afficher le mini-formulaire
+        planning_popup = st.session_state.get('planning_popup', None)
+        if planning_popup and planning_popup['statut'] in ['r1', 'à rappeller']:
+            prospect = df[df['place_id'] == planning_popup['place_id']].iloc[0]
+            st.sidebar.subheader(f"Ajouter un rappel au planning pour {prospect['name']}")
+            with st.sidebar.form(f"form_planning_{prospect['place_id']}"):
+                titre = st.text_input("Titre du rappel", f"Rappel {planning_popup['statut']} - {prospect['name']}")
+                date = st.date_input("Date", value=datetime.now().date())
+                heure = st.time_input("Heure", value=datetime.now().time().replace(second=0, microsecond=0))
+                commentaire = st.text_area("Commentaire (optionnel)")
+                submit_planning = st.form_submit_button("Ajouter au planning")
+                if submit_planning:
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        date_debut = datetime.combine(date, heure)
+                        c.execute("""
+                            INSERT INTO taches (client_id, commande_id, type_tache, titre, description, date_debut, est_process, service)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            None,  # client_id (optionnel, à lier si besoin)
+                            None,  # commande_id
+                            planning_popup['statut'],
+                            titre,
+                            commentaire,
+                            date_debut,
+                            1,  # est_process = True (pas lié à un client)
+                            None
+                        ))
+                        conn.commit()
+                    st.success("Rappel ajouté au planning !")
+                    st.session_state['planning_popup'] = None
+                    st.rerun()
+            if st.sidebar.button("Fermer", key=f"close_planning_popup_{prospect['place_id']}"):
+                st.session_state['planning_popup'] = None
                 st.rerun()
 
         # --- Panneau d'action à droite pour bulk ---
