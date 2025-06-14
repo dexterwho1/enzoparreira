@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime, date
+import re
 
 DB_PATH = "crm_data.db"
 
@@ -106,4 +107,14 @@ else:
         # Prix horaire (placeholder)
         line_cols[7].write("- €/h")
         # Action (Ajouter tâche)
-        line_cols[8].button("Ajouter tâche", key=f"tache_{row['commande_id']}") 
+        line_cols[8].button("Ajouter tâche", key=f"tache_{row['commande_id']}")
+
+        # Gestion des erreurs
+        tel = row.get('tel', '')
+        tel_clean = re.sub(r"[^\d+]", "", tel)  # retire tout sauf chiffres et +
+        # Gère les formats +33 7..., 07..., 06...
+        if tel_clean.startswith("+33"):
+            tel_clean = "0" + tel_clean[3:]
+        if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
+            st.error(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
+            continue 

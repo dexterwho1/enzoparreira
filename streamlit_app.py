@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import hashlib
+import re
 
 # --- Initialisation de la base de données ---
 DB_PATH = "crm_data.db"
@@ -77,12 +78,15 @@ if file:
         tel = str(row.get("phone", "")).strip()
         adresse = str(row.get("address", "")).strip()
         # Filtre numéro FR mobile
-        tel_clean = tel.replace(" ", "").replace("-", "")
+        tel_clean = re.sub(r"[^\d+]", "", tel)  # retire tout sauf chiffres et +
+        # Gère les formats +33 7..., 07..., 06...
+        if tel_clean.startswith("+33"):
+            tel_clean = "0" + tel_clean[3:]
+        if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
+            erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
+            continue
         if not (nom and tel and adresse):
             erreurs.append(f"Ligne {idx+2} ignorée : nom/téléphone/adresse manquant.")
-            continue
-        if not (tel_clean.startswith("06") or tel_clean.startswith("07") or tel_clean.startswith("+336") or tel_clean.startswith("+337")):
-            erreurs.append(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
             continue
         # Gestion du doublon : on met à jour si le téléphone existe déjà
         with sqlite3.connect(DB_PATH) as conn:
