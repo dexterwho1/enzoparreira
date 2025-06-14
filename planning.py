@@ -254,17 +254,21 @@ with tab2:
                                 search.lower() in str(task['type_tache']).lower()):
                                 if type_filter == "Tous" or type_filter == task['type_tache']:
                                     key = f"task_{task['tache_id']}_mois"
+                                    # Affichage visuel selon le statut
+                                    if task.get('statut') == 'terminé':
+                                        style = "background-color:#d4edda;color:#155724;font-weight:bold;border-radius:6px;padding:2px 6px;"
+                                    else:
+                                        style = "background-color:#fff3cd;color:#856404;border-radius:6px;padding:2px 6px;"
                                     if st.button(f"{task['titre']}", key=key):
                                         st.session_state['selected_task'] = task['tache_id']
+                                    st.markdown(f'<div style="{style}">{task["titre"]}</div>', unsafe_allow_html=True)
                                     if st.session_state.get('selected_task') == task['tache_id']:
                                         with st.form(f"form_{key}"):
                                             st.write(f"**Action sur la tâche : {task['titre']}**")
                                             action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"])
-                                            new_date = None
-                                            new_time = None
-                                            if action == "Retarder":
-                                                new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date())
-                                                new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time())
+                                            # Toujours afficher les champs de report si "Retarder" est sélectionné
+                                            new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date()) if action == "Retarder" else None
+                                            new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time()) if action == "Retarder" else None
                                             submitted = st.form_submit_button("Valider")
                                             if submitted:
                                                 with sqlite3.connect(DB_PATH) as conn:
@@ -336,17 +340,20 @@ with tab3:
                             search_week.lower() in str(task['type_tache']).lower()):
                             if type_filter_week == "Tous" or type_filter_week == task['type_tache']:
                                 key = f"task_{task['tache_id']}_hebdo"
+                                # Affichage visuel selon le statut
+                                if task.get('statut') == 'terminé':
+                                    style = "background-color:#d4edda;color:#155724;font-weight:bold;border-radius:6px;padding:2px 6px;"
+                                else:
+                                    style = "background-color:#fff3cd;color:#856404;border-radius:6px;padding:2px 6px;"
                                 if st.button(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}", key=key):
                                     st.session_state['selected_task'] = task['tache_id']
+                                st.markdown(f'<div style="{style}">{task["titre"]} - {task["client_name"] if task["client_name"] else "Process"}</div>', unsafe_allow_html=True)
                                 if st.session_state.get('selected_task') == task['tache_id']:
                                     with st.form(f"form_{key}"):
                                         st.write(f"**Action sur la tâche : {task['titre']}**")
                                         action = st.radio("Action", ["Marquer comme complétée", "Retarder", "Annuler"])
-                                        new_date = None
-                                        new_time = None
-                                        if action == "Retarder":
-                                            new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date())
-                                            new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time())
+                                        new_date = st.date_input("Nouvelle date", value=pd.to_datetime(task['date_debut']).date()) if action == "Retarder" else None
+                                        new_time = st.time_input("Nouvelle heure", value=pd.to_datetime(task['date_debut']).time()) if action == "Retarder" else None
                                         submitted = st.form_submit_button("Valider")
                                         if submitted:
                                             with sqlite3.connect(DB_PATH) as conn:
