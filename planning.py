@@ -274,9 +274,15 @@ with tab2:
                                                 selected_action = actions[0]
                                             action = st.radio("Action", actions, index=actions.index(selected_action))
                                             st.session_state['selected_action'] = action
+                                            # Toujours initialiser les champs pour éviter le bug
+                                            if 'retard_date' not in st.session_state or st.session_state['retard_date'] is None:
+                                                st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
+                                            if 'retard_time' not in st.session_state or st.session_state['retard_time'] is None:
+                                                st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
+                                            retard_date, retard_time = None, None
                                             if action == "Retarder":
-                                                retard_date = st.date_input("Nouvelle date", value=st.session_state.get('retard_date', pd.to_datetime(task['date_debut']).date()), key=f"date_{key}")
-                                                retard_time = st.time_input("Nouvelle heure", value=st.session_state.get('retard_time', pd.to_datetime(task['date_debut']).time()), key=f"time_{key}")
+                                                retard_date = st.date_input("Nouvelle date", value=st.session_state['retard_date'], key=f"date_{key}")
+                                                retard_time = st.time_input("Nouvelle heure", value=st.session_state['retard_time'], key=f"time_{key}")
                                                 st.session_state['retard_date'] = retard_date
                                                 st.session_state['retard_time'] = retard_time
                                             col1, col2 = st.columns(2)
@@ -383,9 +389,15 @@ with tab3:
                                             selected_action = actions[0]
                                         action = st.radio("Action", actions, index=actions.index(selected_action))
                                         st.session_state['selected_action'] = action
+                                        # Toujours initialiser les champs pour éviter le bug
+                                        if 'retard_date' not in st.session_state or st.session_state['retard_date'] is None:
+                                            st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
+                                        if 'retard_time' not in st.session_state or st.session_state['retard_time'] is None:
+                                            st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
+                                        retard_date, retard_time = None, None
                                         if action == "Retarder":
-                                            retard_date = st.date_input("Nouvelle date", value=st.session_state.get('retard_date', pd.to_datetime(task['date_debut']).date()), key=f"date_{key}")
-                                            retard_time = st.time_input("Nouvelle heure", value=st.session_state.get('retard_time', pd.to_datetime(task['date_debut']).time()), key=f"time_{key}")
+                                            retard_date = st.date_input("Nouvelle date", value=st.session_state['retard_date'], key=f"date_{key}")
+                                            retard_time = st.time_input("Nouvelle heure", value=st.session_state['retard_time'], key=f"time_{key}")
                                             st.session_state['retard_date'] = retard_date
                                             st.session_state['retard_time'] = retard_time
                                         col1, col2 = st.columns(2)
