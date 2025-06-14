@@ -452,8 +452,8 @@ elif page == "CRM Clients":
         exec(f.read(), globals())
     
 elif page == "Commandes":
-    st.title("Commandes")
-    st.info("Page Commandes à implémenter")
+    with open("commandes.py", encoding="utf-8") as f:
+        exec(f.read(), globals())
     
 elif page == "Planning":
     st.title("Planning")
