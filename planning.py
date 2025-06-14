@@ -260,10 +260,12 @@ with tab2:
                                     else:
                                         style = "background-color:#fff3cd;color:#856404;border-radius:6px;padding:2px 6px;"
                                     if st.button(f"{task['titre']}", key=key):
-                                        st.session_state['selected_task'] = task['tache_id']
-                                        st.session_state['selected_action'] = None
-                                        st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
-                                        st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
+                                        # Si on clique sur une autre tâche, on réinitialise tout le state
+                                        if st.session_state.get('selected_task') != task['tache_id']:
+                                            st.session_state['selected_task'] = task['tache_id']
+                                            st.session_state['selected_action'] = None
+                                            st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
+                                            st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
                                     st.markdown(f'<div style="{style}">{task["titre"]}</div>', unsafe_allow_html=True)
                                     if st.session_state.get('selected_task') == task['tache_id']:
                                         with st.form(f"form_{key}"):
@@ -276,7 +278,11 @@ with tab2:
                                                 retard_time = st.time_input("Nouvelle heure", value=st.session_state.get('retard_time', pd.to_datetime(task['date_debut']).time()), key=f"time_{key}")
                                                 st.session_state['retard_date'] = retard_date
                                                 st.session_state['retard_time'] = retard_time
-                                            submitted = st.form_submit_button("Valider")
+                                            col1, col2 = st.columns(2)
+                                            with col1:
+                                                submitted = st.form_submit_button("Valider")
+                                            with col2:
+                                                fermer = st.form_submit_button("Fermer")
                                             if submitted:
                                                 with sqlite3.connect(DB_PATH) as conn:
                                                     c = conn.cursor()
@@ -290,6 +296,12 @@ with tab2:
                                                         c.execute("DELETE FROM taches WHERE tache_id=?", (task['tache_id'],))
                                                     conn.commit()
                                                 st.success("Action effectuée !")
+                                                st.session_state['selected_task'] = None
+                                                st.session_state['selected_action'] = None
+                                                st.session_state['retard_date'] = None
+                                                st.session_state['retard_time'] = None
+                                                st.rerun()
+                                            if fermer:
                                                 st.session_state['selected_task'] = None
                                                 st.session_state['selected_action'] = None
                                                 st.session_state['retard_date'] = None
@@ -350,16 +362,16 @@ with tab3:
                             search_week.lower() in str(task['type_tache']).lower()):
                             if type_filter_week == "Tous" or type_filter_week == task['type_tache']:
                                 key = f"task_{task['tache_id']}_hebdo"
-                                # Affichage visuel selon le statut
                                 if task.get('statut') == 'terminé':
                                     style = "background-color:#d4edda;color:#155724;font-weight:bold;border-radius:6px;padding:2px 6px;"
                                 else:
                                     style = "background-color:#fff3cd;color:#856404;border-radius:6px;padding:2px 6px;"
                                 if st.button(f"{task['titre']} - {task['client_name'] if task['client_name'] else 'Process'}", key=key):
-                                    st.session_state['selected_task'] = task['tache_id']
-                                    st.session_state['selected_action'] = None
-                                    st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
-                                    st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
+                                    if st.session_state.get('selected_task') != task['tache_id']:
+                                        st.session_state['selected_task'] = task['tache_id']
+                                        st.session_state['selected_action'] = None
+                                        st.session_state['retard_date'] = pd.to_datetime(task['date_debut']).date()
+                                        st.session_state['retard_time'] = pd.to_datetime(task['date_debut']).time()
                                 st.markdown(f'<div style="{style}">{task["titre"]} - {task["client_name"] if task["client_name"] else "Process"}</div>', unsafe_allow_html=True)
                                 if st.session_state.get('selected_task') == task['tache_id']:
                                     with st.form(f"form_{key}"):
@@ -372,7 +384,11 @@ with tab3:
                                             retard_time = st.time_input("Nouvelle heure", value=st.session_state.get('retard_time', pd.to_datetime(task['date_debut']).time()), key=f"time_{key}")
                                             st.session_state['retard_date'] = retard_date
                                             st.session_state['retard_time'] = retard_time
-                                        submitted = st.form_submit_button("Valider")
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                            submitted = st.form_submit_button("Valider")
+                                        with col2:
+                                            fermer = st.form_submit_button("Fermer")
                                         if submitted:
                                             with sqlite3.connect(DB_PATH) as conn:
                                                 c = conn.cursor()
@@ -386,6 +402,12 @@ with tab3:
                                                     c.execute("DELETE FROM taches WHERE tache_id=?", (task['tache_id'],))
                                                 conn.commit()
                                             st.success("Action effectuée !")
+                                            st.session_state['selected_task'] = None
+                                            st.session_state['selected_action'] = None
+                                            st.session_state['retard_date'] = None
+                                            st.session_state['retard_time'] = None
+                                            st.rerun()
+                                        if fermer:
                                             st.session_state['selected_task'] = None
                                             st.session_state['selected_action'] = None
                                             st.session_state['retard_date'] = None
