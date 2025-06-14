@@ -15,12 +15,16 @@ try:
         df = pd.read_sql_query("SELECT * FROM prospects", conn)
 
     # Vérification colonne date_dernier_appel
-    if 'date_dernier_appel' not in df.columns:
-        st.warning("Aucune donnée d'appel trouvée (colonne 'date_dernier_appel' manquante)")
+    if 'date_dernier_appel' not in df.columns or df.empty:
+        st.warning("Aucune donnée d'appel trouvée (colonne 'date_dernier_appel' manquante ou base vide)")
         st.stop()
 
     # Conversion robuste de la date
     df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
+
+    # Vérification colonne statut_appel
+    if 'statut_appel' not in df.columns:
+        df['statut_appel'] = None
 
     # Fonctions utilitaires pour les périodes
     now = datetime.now()
@@ -41,17 +45,27 @@ try:
 
     # Appels passés = toute ligne avec une date_dernier_appel non vide dans la période
     def count_calls(df, start, end):
+        if df.empty:
+            return 0
         return filter_by_period(df, 'date_dernier_appel_dt', start, end).shape[0]
 
     # RDV générés = statut_appel == 'r1' ou 'signé' dans la période
     def count_rdv(df, start, end):
+        if df.empty:
+            return 0
         filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
-        return filt[filt['statut_appel'].isin(['r1', 'signé'])].shape[0]
+        if 'statut_appel' not in filt.columns or filt.empty:
+            return 0
+        return filt[filt['statut_appel'].fillna('').isin(['r1', 'signé'])].shape[0]
 
     # Clients estimés = statut_appel == 'signé' dans la période
     def count_clients(df, start, end):
+        if df.empty:
+            return 0
         filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
-        return filt[filt['statut_appel'] == 'signé'].shape[0]
+        if 'statut_appel' not in filt.columns or filt.empty:
+            return 0
+        return filt[filt['statut_appel'].fillna('') == 'signé'].shape[0]
 
     # CA estimé (exemple: 0€ car pas de montant dans prospects)
     def ca_estime(df, start, end):
@@ -97,10 +111,10 @@ try:
 
     # Comparaison par catégorie principale
     st.subheader("Comparaison par catégorie principale")
-    if 'main_category' in df.columns:
+    if 'main_category' in df.columns and not df.empty:
         cat_stats = df.groupby('main_category').agg({
             'place_id': 'count',
-            'statut_appel': lambda x: (x == 'signé').sum()
+            'statut_appel': lambda x: (x.fillna('') == 'signé').sum()
         }).rename(columns={'place_id': 'Appels', 'statut_appel': 'Clients signés'})
         st.dataframe(cat_stats)
     else:
