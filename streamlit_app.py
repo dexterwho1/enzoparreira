@@ -57,6 +57,13 @@ def init_db():
         statut TEXT,
         FOREIGN KEY(client_id) REFERENCES clients(client_id)
     )''')
+    # Table historique des statuts
+    c.execute('''CREATE TABLE IF NOT EXISTS historique_statuts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        place_id TEXT,
+        statut TEXT,
+        date_changement TEXT
+    )''')
     conn.commit()
     conn.close()
 
@@ -339,6 +346,8 @@ if page == "Prospection":
                     now = datetime.now().strftime("%Y-%m-%d %H:%M")
                     c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", 
                             (statut_choisi, now, show_statut_popup))
+                    # Ajout historique
+                    c.execute("INSERT INTO historique_statuts (place_id, statut, date_changement) VALUES (?, ?, ?)", (show_statut_popup, statut_choisi, now))
                     conn.commit()
                 st.session_state['show_statut_popup'] = None
                 st.session_state['selected_individual'] = None
@@ -367,6 +376,8 @@ if page == "Prospection":
                         now = datetime.now().strftime("%Y-%m-%d %H:%M")
                         for pid in selection:
                             c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (statut, now, pid))
+                            # Ajout historique
+                            c.execute("INSERT INTO historique_statuts (place_id, statut, date_changement) VALUES (?, ?, ?)", (pid, statut, now))
                         conn.commit()
                     st.success(f"Statut '{statut}' appliqué à la sélection.")
                     st.session_state['selection'] = set()
@@ -449,6 +460,8 @@ if page == "Prospection":
                         c = conn.cursor()
                         now = datetime.now().strftime("%Y-%m-%d %H:%M")
                         c.execute("UPDATE prospects SET statut_appel=?, date_dernier_appel=? WHERE place_id=?", (statut, now, detail_row['place_id']))
+                        # Ajout historique
+                        c.execute("INSERT INTO historique_statuts (place_id, statut, date_changement) VALUES (?, ?, ?)", (detail_row['place_id'], statut, now))
                         conn.commit()
                     st.success(f"Statut '{statut}' appliqué à {detail_row['name']}.")
                     st.session_state['show_details'] = None

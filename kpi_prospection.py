@@ -1,168 +1,107 @@
 import streamlit as st
 import traceback
+import sqlite3
+import pandas as pd
+from datetime import datetime, timedelta
 
-try:
-    import sqlite3
-    import pandas as pd
-    from datetime import datetime, timedelta
+DB_PATH = "crm_data.db"
 
-    DB_PATH = "crm_data.db"
+st.title("KPI Prospection")
 
-    st.title("KPI Prospection (DEBUG)")
+# --- Récupération des données ---
+with sqlite3.connect(DB_PATH) as conn:
+    histo = pd.read_sql_query("SELECT * FROM historique_statuts", conn)
+    prospects = pd.read_sql_query("SELECT * FROM prospects", conn)
+    clients = pd.read_sql_query("SELECT * FROM clients", conn)
 
-    # Récupération des données
-    with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query("SELECT * FROM prospects", conn)
+# --- Préparation des données ---
+# Dernier statut par prospect (y compris ceux devenus clients)
+if not histo.empty:
+    histo['date_changement'] = pd.to_datetime(histo['date_changement'], errors='coerce')
+    last_statut = histo.sort_values('date_changement').groupby('place_id').tail(1)
+else:
+    last_statut = pd.DataFrame(columns=['place_id','statut','date_changement'])
 
-    st.write("[DEBUG] Shape df:", df.shape)
-    st.write("[DEBUG] Colonnes:", list(df.columns))
-    if not df.empty:
-        st.write("[DEBUG] Extrait df:", df.head())
+# Pour les périodes
+now = datetime.now()
+today = now.date()
+yesterday = today - timedelta(days=1)
+start_week = today - timedelta(days=today.weekday())
+start_last_week = start_week - timedelta(days=7)
+end_last_week = start_week - timedelta(days=1)
+start_month = today.replace(day=1)
+periods = {
+    "Aujourd'hui": (today, today),
+    "Hier": (yesterday, yesterday),
+    "Cette semaine": (start_week, today),
+    "Semaine dernière": (start_last_week, end_last_week),
+    "Ce mois": (start_month, today)
+}
 
-    # Vérification colonne date_dernier_appel
-    if 'date_dernier_appel' not in df.columns or df.empty:
-        st.warning("Aucune donnée d'appel trouvée (colonne 'date_dernier_appel' manquante ou base vide)")
-        st.stop()
+# --- Appels passés ---
+# Tous les place_id ayant au moins un changement de statut (historique) ou présents dans clients
+place_ids_appel = set(histo['place_id'].unique()) | set(clients['place_id'].dropna().unique())
+# Pour les périodes, on regarde la date du dernier changement de statut
+last_statut_period = last_statut.copy()
+last_statut_period['date'] = last_statut_period['date_changement'].dt.date
 
-    # Conversion robuste de la date
-    df['date_dernier_appel_dt'] = pd.to_datetime(df['date_dernier_appel'], errors='coerce')
-    st.write("[DEBUG] date_dernier_appel_dt min:", df['date_dernier_appel_dt'].min())
-    st.write("[DEBUG] date_dernier_appel_dt max:", df['date_dernier_appel_dt'].max())
-    st.write("[DEBUG] NAs dans date_dernier_appel_dt:", df['date_dernier_appel_dt'].isna().sum())
+def count_appels_periode(start, end):
+    mask = (last_statut_period['date'] >= start) & (last_statut_period['date'] <= end)
+    return last_statut_period[mask]['place_id'].nunique() + clients[~clients['place_id'].isin(last_statut_period[mask]['place_id'])]['place_id'].nunique()
 
-    # Vérification colonne statut_appel
-    if 'statut_appel' not in df.columns:
-        df['statut_appel'] = None
-    st.write("[DEBUG] statut_appel uniques:", df['statut_appel'].unique())
+kpi_data = {p: count_appels_periode(*d) for p, d in periods.items()}
 
-    # Fonctions utilitaires pour les périodes
-    now = datetime.now()
-    today = now.date()
-    yesterday = today - timedelta(days=1)
-    start_week = today - timedelta(days=today.weekday())
-    start_last_week = start_week - timedelta(days=7)
-    end_last_week = start_week - timedelta(days=1)
-    start_month = today.replace(day=1)
+# --- Clients estimés ---
+def count_clients_periode(start, end):
+    # On prend la date_conversion du client
+    if 'date_conversion' in clients.columns:
+        clients['date_conversion_dt'] = pd.to_datetime(clients['date_conversion'], errors='coerce')
+        mask = (clients['date_conversion_dt'].dt.date >= start) & (clients['date_conversion_dt'].dt.date <= end)
+        return clients[mask]['client_id'].nunique()
+    return 0
+clients_data = {p: count_clients_periode(*d) for p, d in periods.items()}
 
-    # Helper pour filtrer par date
-    def filter_by_period(df, col, start, end):
-        start_dt = pd.to_datetime(start)
-        end_dt = pd.to_datetime(end)
-        mask = (df[col].notna()) & (df[col] >= start_dt) & (df[col] <= end_dt)
-        st.write(f"[DEBUG] filter_by_period {col} {start} -> {end} : {mask.sum()} lignes gardées")
-        st.write("[DEBUG] Dates filtrées:", df.loc[mask, col].sort_values())
-        return df[mask]
+# --- Ratio appels/clients ---
+def safe_ratio(a, b):
+    return f"{a/b:.1f}" if b else "∞"
 
-    # Appels passés = toute ligne avec une date_dernier_appel non vide dans la période
-    def count_calls(df, start, end):
-        if df.empty:
-            st.write("[DEBUG] count_calls: df vide")
-            return 0
-        res = filter_by_period(df, 'date_dernier_appel_dt', start, end)
-        st.write(f"[DEBUG] count_calls {start} -> {end}: {res.shape[0]}")
-        return res.shape[0]
+# --- Section KPI ---
+st.subheader("KPI Prospection")
+st.write(pd.DataFrame([kpi_data], index=["Appels passés"]))
+st.write(pd.DataFrame([clients_data], index=["Clients (transformés)"]))
+ratio = safe_ratio(sum(kpi_data.values()), sum(clients_data.values()))
+st.metric("Ratio Appels/Clients", ratio)
 
-    # RDV générés = statut_appel == 'r1' ou 'signé' dans la période
-    def count_rdv(df, start, end):
-        if df.empty:
-            st.write("[DEBUG] count_rdv: df vide")
-            return 0
-        filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
-        if 'statut_appel' not in filt.columns or filt.empty:
-            st.write("[DEBUG] count_rdv: pas de colonne ou df vide")
-            return 0
-        res = filt[filt['statut_appel'].fillna('').isin(['r1', 'signé'])]
-        st.write(f"[DEBUG] count_rdv {start} -> {end}: {res.shape[0]}")
-        st.write("[DEBUG] RDV générés:", res[['place_id','statut_appel','date_dernier_appel_dt']])
-        return res.shape[0]
+# --- Affichage des clients signés (même hors prospects) ---
+st.subheader("Clients signés (tous)")
+if not clients.empty:
+    st.dataframe(clients[['name','phone','address','date_conversion']])
+else:
+    st.info("Aucun client signé.")
 
-    # Clients estimés = statut_appel == 'signé' dans la période
-    def count_clients(df, start, end):
-        if df.empty:
-            st.write("[DEBUG] count_clients: df vide")
-            return 0
-        filt = filter_by_period(df, 'date_dernier_appel_dt', start, end)
-        if 'statut_appel' not in filt.columns or filt.empty:
-            st.write("[DEBUG] count_clients: pas de colonne ou df vide")
-            return 0
-        res = filt[filt['statut_appel'].fillna('') == 'signé']
-        st.write(f"[DEBUG] count_clients {start} -> {end}: {res.shape[0]}")
-        st.write("[DEBUG] Clients estimés:", res[['place_id','statut_appel','date_dernier_appel_dt']])
-        return res.shape[0]
+# --- Funnel de vente ---
+st.subheader("Funnel de vente (statut d'appel)")
+if not last_statut.empty:
+    total = last_statut['place_id'].nunique()
+    funnel = last_statut['statut'].value_counts().reset_index()
+    funnel.columns = ['Statut', 'Nombre']
+    funnel['%'] = funnel['Nombre'] / total * 100
+    st.dataframe(funnel)
+else:
+    st.info("Aucun prospect avec statut d'appel.")
 
-    # CA estimé (exemple: 0€ car pas de montant dans prospects)
-    def ca_estime(df, start, end):
-        st.write(f"[DEBUG] ca_estime {start} -> {end}: 0")
-        return 0
-
-    # Taux appel → RDV
-    def taux_appel_rdv(appels, rdv):
-        st.write(f"[DEBUG] taux_appel_rdv: appels={appels}, rdv={rdv}")
-        return f"{(rdv/appels*100):.0f}%" if appels else "0%"
-
-    # Taux RDV → client
-    def taux_rdv_client(rdv, clients):
-        st.write(f"[DEBUG] taux_rdv_client: rdv={rdv}, clients={clients}")
-        return f"{(clients/rdv*100):.0f}%" if rdv else "0%"
-
-    # KPI par période
-    periods = {
-        "Aujourd'hui": (today, today),
-        "Hier": (yesterday, yesterday),
-        "Cette semaine": (start_week, today),
-        "Semaine dernière": (start_last_week, end_last_week),
-        "Ce mois": (start_month, today)
-    }
-
-    st.subheader("KPI Prospection")
-    kpi_data = {p: count_calls(df, *d) for p, d in periods.items()}
-    st.write("[DEBUG] kpi_data:", kpi_data)
-    st.write(pd.DataFrame([kpi_data], index=["Appels passés"]))
-
-    rdv_data = {p: count_rdv(df, *d) for p, d in periods.items()}
-    st.write("[DEBUG] rdv_data:", rdv_data)
-    st.write(pd.DataFrame([rdv_data], index=["RDV générés"]))
-
-    clients_data = {p: count_clients(df, *d) for p, d in periods.items()}
-    st.write("[DEBUG] clients_data:", clients_data)
-    st.write(pd.DataFrame([clients_data], index=["Clients estimés"]))
-
-    ca_data = {p: ca_estime(df, *d) for p, d in periods.items()}
-    st.write("[DEBUG] ca_data:", ca_data)
-    st.write(pd.DataFrame([ca_data], index=["CA estimé (€)"]))
-
-    # Taux globaux
-    appels_total = count_calls(df, start_month, today)
-    rdv_total = count_rdv(df, start_month, today)
-    clients_total = count_clients(df, start_month, today)
-
-    st.metric("Taux appel → RDV", taux_appel_rdv(appels_total, rdv_total))
-    st.metric("Taux RDV → client", taux_rdv_client(rdv_total, clients_total))
-
-    # Comparaison par catégorie principale
-    st.subheader("Comparaison par catégorie principale")
-    if 'main_category' in df.columns and not df.empty:
-        cat_stats = df.groupby('main_category').agg({
-            'place_id': 'count',
-            'statut_appel': lambda x: (x.fillna('') == 'signé').sum()
-        }).rename(columns={'place_id': 'Appels', 'statut_appel': 'Clients signés'})
-        st.write("[DEBUG] cat_stats:", cat_stats)
-        st.dataframe(cat_stats)
-    else:
-        st.info("Aucune catégorie principale trouvée dans les données.")
-
-    # Pipeline 4 semaines (appels)
-    st.subheader("Pipeline 4 semaines (appels)")
-    four_weeks_ago = today - timedelta(days=28)
-    four_weeks_ago_dt = pd.to_datetime(four_weeks_ago)
-    pipeline = df[df['date_dernier_appel_dt'] >= four_weeks_ago_dt]
-    st.write(f"[DEBUG] pipeline shape: {pipeline.shape}")
+# --- Pipeline 4 semaines (appels) ---
+st.subheader("Pipeline 4 semaines (appels)")
+four_weeks_ago = today - timedelta(days=28)
+if not last_statut.empty:
+    pipeline = last_statut[last_statut['date'] >= four_weeks_ago]
     if not pipeline.empty:
-        pipeline_stats = pipeline.groupby(pipeline['date_dernier_appel_dt'].dt.isocalendar().week).size()
-        st.write("[DEBUG] pipeline_stats:", pipeline_stats)
+        pipeline_stats = pipeline.groupby(pipeline['date'].apply(lambda d: d.isocalendar()[1])).size()
         st.bar_chart(pipeline_stats)
     else:
         st.info("Aucun appel sur les 4 dernières semaines.")
+else:
+    st.info("Aucun appel sur les 4 dernières semaines.")
 
 except Exception as e:
     st.error(f"Erreur dans KPI Prospection : {e}")
