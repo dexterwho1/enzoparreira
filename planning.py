@@ -133,7 +133,6 @@ def afficher_details_telephone_sidebar(id_):
             if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
                 st.session_state['show_client_details'] = None
                 st.rerun()
-            return
         # Sinon, on tente comme place_id (prospect)
         df_prospect = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(id_,))
         if not df_prospect.empty:
@@ -143,8 +142,6 @@ def afficher_details_telephone_sidebar(id_):
             if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
                 st.session_state['show_client_details'] = None
                 st.rerun()
-            return
-    st.sidebar.warning("Aucun client ou prospect trouvé.")
 
 # Initialisation de la base de données
 init_db()
@@ -377,9 +374,37 @@ with tab2:
                                                 st.session_state['retard_time'] = None
                                                 st.rerun()
 
-# --- Affichage dynamique dans la sidebar depuis le planning ---
+# --- Affichage dans la sidebar depuis le planning ---
 if st.session_state.get('show_client_details'):
-    afficher_details_telephone_sidebar(st.session_state['show_client_details'])
+    id_ = st.session_state['show_client_details']
+    with sqlite3.connect(DB_PATH) as conn:
+        # On tente d'abord comme client_id
+        df_client = pd.read_sql_query("SELECT * FROM clients WHERE client_id = ?", conn, params=(id_,))
+        if not df_client.empty:
+            client = df_client.iloc[0]
+            st.sidebar.subheader(f"Client : {client.get('name', 'Non renseigné')}")
+            st.sidebar.markdown(f"**Téléphone :** {client.get('phone', 'Non renseigné')}")
+            if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
+                st.session_state['show_client_details'] = None
+                st.rerun()
+        else:
+            # Sinon, on tente comme place_id (prospect)
+            # On cherche la tâche sélectionnée pour récupérer le champ 'service'
+            tache_id = st.session_state.get('selected_task')
+            if tache_id:
+                df_tache = pd.read_sql_query("SELECT * FROM taches WHERE tache_id = ?", conn, params=(tache_id,))
+                if not df_tache.empty:
+                    place_id = df_tache.iloc[0].get('service')
+                    if place_id:
+                        df_prospect = pd.read_sql_query("SELECT * FROM prospects WHERE place_id = ?", conn, params=(place_id,))
+                        if not df_prospect.empty:
+                            prospect = df_prospect.iloc[0]
+                            st.sidebar.subheader(f"Prospect : {prospect.get('name', 'Non renseigné')}")
+                            st.sidebar.markdown(f"**Téléphone :** {prospect.get('phone', 'Non renseigné')}")
+                            if st.sidebar.button("Fermer", key=f"close_tel_details_{place_id}"):
+                                st.session_state['show_client_details'] = None
+                                st.rerun()
+            st.sidebar.warning("Aucun client ou prospect trouvé.")
 
 with tab3:
     st.subheader("Planning hebdomadaire")

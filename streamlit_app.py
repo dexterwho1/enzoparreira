@@ -419,7 +419,7 @@ if page == "Prospection":
                             commentaire,
                             date_debut,
                             1,  # est_process = True (pas lié à un client)
-                            None
+                            prospect['place_id']  # <-- place_id stocké dans 'service'
                         ))
                         conn.commit()
                     st.success("Rappel ajouté au planning !")
