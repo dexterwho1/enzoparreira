@@ -75,8 +75,8 @@ if not templates.empty:
         for idx, item in items.iterrows():
             st.markdown(f"{idx+1}. {item['texte']}")
         if st.button(f"Ajouter un item", key=f"add_item_tpl_{tpl['id']}"):
-            st.session_state[f'show_add_item_tpl_{tpl['id']}'] = True
-        if st.session_state.get(f'show_add_item_tpl_{tpl['id']}'):
+            st.session_state[f"show_add_item_tpl_{tpl['id']}"] = True
+        if st.session_state.get(f"show_add_item_tpl_{tpl['id']}"):
             with st.form(f"form_add_item_tpl_{tpl['id']}"):
                 texte = st.text_input("Texte de l'item")
                 ordre = st.number_input("Ordre", min_value=1, value=len(items)+1)
@@ -86,10 +86,10 @@ if not templates.empty:
                         c.execute("INSERT INTO checklist_template_items (template_id, texte, ordre) VALUES (?, ?, ?)", (tpl['id'], texte, ordre))
                         conn.commit()
                     st.success("Item ajouté !")
-                    st.session_state[f'show_add_item_tpl_{tpl['id']}'] = False
+                    st.session_state[f"show_add_item_tpl_{tpl['id']}"] = False
                     st.rerun()
                 if st.form_submit_button("Annuler"):
-                    st.session_state[f'show_add_item_tpl_{tpl['id']}'] = False
+                    st.session_state[f"show_add_item_tpl_{tpl['id']}"] = False
                     st.rerun()
         if st.button(f"Supprimer ce modèle", key=f"del_tpl_{tpl['id']}"):
             with sqlite3.connect(DB_PATH) as conn:
@@ -152,8 +152,8 @@ if not checklists.empty:
                     c.execute("UPDATE checklist_items SET fait=? WHERE id=?", (int(checked), item['id']))
                     conn.commit()
         if st.button(f"Ajouter un item", key=f"add_item_cl_{cl['id']}"):
-            st.session_state[f'show_add_item_cl_{cl['id']}'] = True
-        if st.session_state.get(f'show_add_item_cl_{cl['id']}'):
+            st.session_state[f"show_add_item_cl_{cl['id']}"] = True
+        if st.session_state.get(f"show_add_item_cl_{cl['id']}"):
             with st.form(f"form_add_item_cl_{cl['id']}"):
                 texte = st.text_input("Texte de l'item")
                 ordre = st.number_input("Ordre", min_value=1, value=len(items)+1)
@@ -163,10 +163,10 @@ if not checklists.empty:
                         c.execute("INSERT INTO checklist_items (checklist_id, texte, fait, ordre) VALUES (?, ?, 0, ?)", (cl['id'], texte, ordre))
                         conn.commit()
                     st.success("Item ajouté !")
-                    st.session_state[f'show_add_item_cl_{cl['id']}'] = False
+                    st.session_state[f"show_add_item_cl_{cl['id']}"] = False
                     st.rerun()
                 if st.form_submit_button("Annuler"):
-                    st.session_state[f'show_add_item_cl_{cl['id']}'] = False
+                    st.session_state[f"show_add_item_cl_{cl['id']}"] = False
                     st.rerun()
         if st.button(f"Supprimer cette checklist", key=f"del_cl_{cl['id']}"):
             with sqlite3.connect(DB_PATH) as conn:
