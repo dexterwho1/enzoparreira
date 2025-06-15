@@ -549,6 +549,29 @@ if 'show_task_form' in st.session_state and st.session_state.show_task_form:
         date = st.date_input("Date")
         heure = st.time_input("Heure")
         
+        # --- Pré-remplissage du commentaire avec le numéro de téléphone pour r1/à rappeller ---
+        # À placer dans le formulaire d'ajout/édition de tâche (planning)
+        # Supposons que tu as une variable 'type_tache' et un champ commentaire
+        # Exemple pour l'ajout :
+        def get_phone_for_task(client_id, service):
+            with sqlite3.connect(DB_PATH) as conn:
+                if client_id:
+                    df = pd.read_sql_query("SELECT phone FROM clients WHERE client_id = ?", conn, params=(client_id,))
+                    if not df.empty:
+                        return df.iloc[0]['phone']
+                if service:
+                    df = pd.read_sql_query("SELECT phone FROM prospects WHERE place_id = ?", conn, params=(service,))
+                    if not df.empty:
+                        return df.iloc[0]['phone']
+            return ""
+        # ...
+        # Dans le formulaire :
+        if type_tache in ["r1", "à rappeller"]:
+            default_comment = get_phone_for_task(client_id, service)
+        else:
+            default_comment = ""
+        commentaire = st.text_area("Commentaire (optionnel)", value=default_comment, key="commentaire_form")
+        
         col1, col2 = st.columns(2)
         with col1:
             if st.form_submit_button("Ajouter"):

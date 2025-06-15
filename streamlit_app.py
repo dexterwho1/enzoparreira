@@ -398,11 +398,12 @@ if page == "Prospection":
         if planning_popup and planning_popup['statut'] in ['r1', 'à rappeller']:
             prospect = df[df['place_id'] == planning_popup['place_id']].iloc[0]
             st.sidebar.subheader(f"Ajouter un rappel au planning pour {prospect['name']}")
+            default_comment = f"{prospect['phone']}" if prospect.get('phone') else ""
             with st.sidebar.form(f"form_planning_{prospect['place_id']}"):
                 titre = st.text_input("Titre du rappel", f"Rappel {planning_popup['statut']} - {prospect['name']}")
                 date = st.date_input("Date", value=datetime.now().date())
                 heure = st.time_input("Heure", value=datetime.now().time().replace(second=0, microsecond=0))
-                commentaire = st.text_area("Commentaire (optionnel)")
+                commentaire = st.text_area("Commentaire (optionnel)", value=default_comment)
                 submit_planning = st.form_submit_button("Ajouter au planning")
                 if submit_planning:
                     with sqlite3.connect(DB_PATH) as conn:
