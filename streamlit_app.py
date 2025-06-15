@@ -555,8 +555,86 @@ elif page == "Planning":
 # Autres pages (Dashboard, CRM Clients, etc.) - à implémenter selon vos besoins
 elif page == "Dashboard":
     st.title("Dashboard")
-    st.info("Page Dashboard à implémenter")
-    
+    st.subheader("Productivité du jour")
+    # --- Récupération des données ---
+    today = datetime.now().date()
+    yesterday = today - pd.Timedelta(days=1)
+    last_week = today - pd.Timedelta(days=7)
+    with sqlite3.connect(DB_PATH) as conn:
+        # Appels aujourd'hui, hier, S-1
+        appels_today = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='tache'", conn, params=(today,)).iloc[0]['n']
+        appels_yesterday = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='tache'", conn, params=(yesterday,)).iloc[0]['n']
+        appels_lastweek = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='tache'", conn, params=(last_week,)).iloc[0]['n']
+        # RDV
+        rdv_today = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='r1'", conn, params=(today,)).iloc[0]['n']
+        rdv_yesterday = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='r1'", conn, params=(yesterday,)).iloc[0]['n']
+        rdv_lastweek = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND type_tache='r1'", conn, params=(last_week,)).iloc[0]['n']
+        # Missions finies
+        missions_today = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND statut='terminé'", conn, params=(today,)).iloc[0]['n']
+        missions_yesterday = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND statut='terminé'", conn, params=(yesterday,)).iloc[0]['n']
+        missions_lastweek = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)=? AND statut='terminé'", conn, params=(last_week,)).iloc[0]['n']
+        # Heures travaillées
+        heures_today = pd.read_sql_query("SELECT SUM(temps_passe) as h FROM taches WHERE date(date_debut)=?", conn, params=(today,)).iloc[0]['h'] or 0
+        heures_yesterday = pd.read_sql_query("SELECT SUM(temps_passe) as h FROM taches WHERE date(date_debut)=?", conn, params=(yesterday,)).iloc[0]['h'] or 0
+        heures_lastweek = pd.read_sql_query("SELECT SUM(temps_passe) as h FROM taches WHERE date(date_debut)=?", conn, params=(last_week,)).iloc[0]['h'] or 0
+    # --- Tableau productivité ---
+    prod = pd.DataFrame({
+        "": ["Appels", "RDV", "Missions finies", "Heures travaillées"],
+        "Aujourd'hui": [appels_today, rdv_today, missions_today, heures_today],
+        "Hier": [appels_yesterday, rdv_yesterday, missions_yesterday, heures_yesterday],
+        "Même jour S-1": [appels_lastweek, rdv_lastweek, missions_lastweek, heures_lastweek],
+    })
+    st.table(prod)
+    # --- Indicateurs clés semaine ---
+    semaine = today.isocalendar()[1]
+    annee = today.year
+    lundi = today - pd.Timedelta(days=today.weekday())
+    dimanche = lundi + pd.Timedelta(days=6)
+    with sqlite3.connect(DB_PATH) as conn:
+        facture = pd.read_sql_query("SELECT SUM(prix) as s FROM commandes WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi, dimanche)).iloc[0]['s'] or 0
+        encaisse = pd.read_sql_query("SELECT SUM(argent_encaisse) as s FROM commandes WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi, dimanche)).iloc[0]['s'] or 0
+        appels = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND type_tache='tache'", conn, params=(lundi, dimanche)).iloc[0]['n']
+        rdv = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND type_tache='r1'", conn, params=(lundi, dimanche)).iloc[0]['n']
+        nouveaux_clients = pd.read_sql_query("SELECT COUNT(*) as n FROM clients WHERE date(date_conversion)>=? AND date(date_conversion)<=?", conn, params=(lundi, dimanche)).iloc[0]['n']
+        missions = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND statut='terminé'", conn, params=(lundi, dimanche)).iloc[0]['n']
+        projets_retard = pd.read_sql_query("SELECT COUNT(*) as n FROM commandes WHERE date(date_fin)<? AND statut!='livré'", conn, params=(today,)).iloc[0]['n']
+        # Taux horaire moyen
+        heures = pd.read_sql_query("SELECT SUM(temps_passe) as h FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi, dimanche)).iloc[0]['h'] or 0
+        taux_horaire = round(facture / heures, 2) if heures else 0
+    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
+    col1.metric("Facturé cette semaine", f"{facture:,.0f} €")
+    col2.metric("Encaissé cette semaine", f"{encaisse:,.0f} €")
+    col3.metric("Appels passés", appels)
+    col4.metric("RDV générés", rdv)
+    col5.metric("Nouveaux clients", nouveaux_clients)
+    col6.metric("{}/h".format(taux_horaire if taux_horaire else 0), "Taux horaire moyen")
+    col7.metric("Missions terminées", missions)
+    col8.metric("Projets en retard", projets_retard)
+    # --- Comparatif semaine/semaine ---
+    st.subheader("Comparatif Semaine/Semaine")
+    lundi_prec = lundi - pd.Timedelta(days=7)
+    dimanche_prec = lundi_prec + pd.Timedelta(days=6)
+    with sqlite3.connect(DB_PATH) as conn:
+        facture_prec = pd.read_sql_query("SELECT SUM(prix) as s FROM commandes WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['s'] or 0
+        encaisse_prec = pd.read_sql_query("SELECT SUM(argent_encaisse) as s FROM commandes WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['s'] or 0
+        appels_prec = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND type_tache='tache'", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['n']
+        rdv_prec = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND type_tache='r1'", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['n']
+        nouveaux_clients_prec = pd.read_sql_query("SELECT COUNT(*) as n FROM clients WHERE date(date_conversion)>=? AND date(date_conversion)<=?", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['n']
+        missions_prec = pd.read_sql_query("SELECT COUNT(*) as n FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=? AND statut='terminé'", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['n']
+        heures_prec = pd.read_sql_query("SELECT SUM(temps_passe) as h FROM taches WHERE date(date_debut)>=? AND date(date_debut)<=?", conn, params=(lundi_prec, dimanche_prec)).iloc[0]['h'] or 0
+        taux_horaire_prec = round(facture_prec / heures_prec, 2) if heures_prec else 0
+    def evol(val, prec):
+        if prec == 0:
+            return "+100%" if val > 0 else "0%"
+        return f"{((val-prec)/prec)*100:+.1f}%"
+    comp = pd.DataFrame({
+        "Indicateur": ["Facturé", "Encaissé", "Appels", "RDV", "Nouveaux clients", "Taux horaire", "Missions terminées"],
+        "Cette semaine": [f"{facture:,.0f} €", f"{encaisse:,.0f} €", appels, rdv, nouveaux_clients, f"{taux_horaire} €/h", missions],
+        "Semaine dernière": [f"{facture_prec:,.0f} €", f"{encaisse_prec:,.0f} €", appels_prec, rdv_prec, nouveaux_clients_prec, f"{taux_horaire_prec} €/h", missions_prec],
+        "Évolution": [evol(facture, facture_prec), evol(encaisse, encaisse_prec), evol(appels, appels_prec), evol(rdv, rdv_prec), evol(nouveaux_clients, nouveaux_clients_prec), evol(taux_horaire, taux_horaire_prec), evol(missions, missions_prec)]
+    })
+    st.table(comp)
+
 elif page == "CRM Clients":
     with open("crm_clients.py", encoding="utf-8") as f:
         exec(f.read(), globals())
