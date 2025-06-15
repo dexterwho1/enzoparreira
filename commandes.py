@@ -177,21 +177,16 @@ else:
         jours = get_jours_restant(row)
         is_livre = row.get('statut') == 'livré'
         line_cols = st.columns(col_widths)
-        
         line_cols[0].write(row['name'])
         line_cols[1].write(row.get('nom_service', '-') or '-')
         line_cols[2].write(row['date_debut'])
         line_cols[3].write(row['date_fin'])
         line_cols[4].write(f"{row.get('prix', 0)} €")
-        
-        # Statut + case à cocher
         statut_color = 'green' if statut == 'Livré' else ('red' if statut == 'En retard' else 'orange')
         statut_label = f"<span style='color:{statut_color}'>{statut}</span>"
         if statut == "À l'heure" and jours != "-":
             statut_label += f" <span style='color:gray;font-size:0.9em'>({jours})</span>"
         line_cols[5].markdown(statut_label, unsafe_allow_html=True)
-        
-        # Checkbox pour marquer livré
         checked = is_livre
         if line_cols[5].checkbox("", value=checked, key=f"livre_{row['commande_id']}"):
             if not is_livre:
@@ -200,80 +195,56 @@ else:
                     c.execute("UPDATE commandes SET statut=? WHERE commande_id=?", ("livré", row['commande_id']))
                     conn.commit()
                 st.rerun()
-        else:
-            if is_livre:
-                with sqlite3.connect(DB_PATH) as conn:
-                    c = conn.cursor()
-                    c.execute("UPDATE commandes SET statut=? WHERE commande_id=?", (None, row['commande_id']))
-                    conn.commit()
-                st.rerun()
-        
-        # Action (Modifier/Supprimer)
-        col_action = line_cols[6]
-        if col_action.button("Modifier", key=f"mod_{row['commande_id']}"):
-            st.session_state['edit_commande'] = row['commande_id']
-        if col_action.button("Supprimer", key=f"del_{row['commande_id']}"):
-            with sqlite3.connect(DB_PATH) as conn:
-                c = conn.cursor()
-                c.execute("DELETE FROM commandes WHERE commande_id=?", (row['commande_id'],))
-                conn.commit()
-            st.success("Commande supprimée !")
+        # Actions
+        if line_cols[6].button("Modifier", key=f"edit_{row['commande_id']}"):
+            st.session_state['edit_commande_id'] = row['commande_id']
             st.rerun()
-
-        # --- Bouton Ajouter tâche ---
-        if line_cols[7].button("Ajouter tâche", key=f"add_task_{row['commande_id']}"):
+        if line_cols[6].button("Supprimer", key=f"delete_{row['commande_id']}"):
+            st.session_state['delete_commande_id'] = row['commande_id']
+            st.rerun()
+        if line_cols[6].button("Ajouter tâche", key=f"add_task_{row['commande_id']}"):
             st.session_state['show_add_task_form'] = row['commande_id']
             st.session_state['add_task_client_id'] = row['client_id']
             st.session_state['add_task_commande_nom'] = row['nom_service']
             st.session_state['add_task_client_nom'] = row['name']
             st.rerun()
-
-        # Calcul du coût à l'heure
         cout_heure = get_cout_heure_commande(row['commande_id'])
-        if cout_heure:
-            line_cols[7].write(f"{cout_heure} €/h")
-        else:
-            line_cols[7].write("-")
-
-# --- Formulaire d'ajout de tâche depuis une commande ---
-if st.session_state.get('show_add_task_form'):
-    commande_id = st.session_state['show_add_task_form']
-    client_id = st.session_state['add_task_client_id']
-    commande_nom = st.session_state['add_task_commande_nom']
-    client_nom = st.session_state['add_task_client_nom']
-    import planning
-    with st.form("add_task_from_commande"):
-        st.subheader("Ajouter une tâche au planning")
-        st.markdown(f"**Client :** {client_nom}")
-        st.markdown(f"**Commande :** {commande_nom}")
-        type_tache = st.selectbox("Type de tâche", planning.TYPES_TACHE)
-        titre = st.text_input("Titre")
-        description = st.text_area("Description", value=f"{commande_nom} - {client_nom}")
-        date = st.date_input("Date", value=datetime.now())
-        heure = st.time_input("Heure de début")
-        heure_fin = st.time_input("Heure de fin")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("Ajouter"):
-                if not titre:
-                    st.error("Le titre est obligatoire")
-                elif heure_fin <= heure:
-                    st.error("L'heure de fin doit être après l'heure de début")
-                else:
-                    with sqlite3.connect(DB_PATH) as conn:
-                        c = conn.cursor()
-                        date_debut = datetime.combine(date, heure)
-                        date_fin = datetime.combine(date, heure_fin)
-                        duree = (date_fin - date_debut).total_seconds() / 3600
-                        c.execute("""
-                            INSERT INTO taches (client_id, commande_id, type_tache, titre, description, date_debut, date_fin, temps_passe, est_process)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-                        """, (client_id, commande_id, type_tache, titre, description, date_debut, date_fin, duree))
-                        conn.commit()
-                    st.success("Tâche ajoutée au planning !")
-                    st.session_state['show_add_task_form'] = None
-                    st.rerun()
-        with col2:
-            if st.form_submit_button("Annuler"):
-                st.session_state['show_add_task_form'] = None
-                st.rerun()
+        line_cols[7].write(f"{cout_heure} €/h" if cout_heure else "-")
+        # Affichage du formulaire juste sous la ligne concernée
+        if st.session_state.get('show_add_task_form') == row['commande_id']:
+            import planning
+            with st.form(f"add_task_from_commande_{row['commande_id']}"):
+                st.subheader("Ajouter une tâche au planning")
+                st.markdown(f"**Client :** {row['name']}")
+                st.markdown(f"**Commande :** {row['nom_service']}")
+                type_tache = st.selectbox("Type de tâche", planning.TYPES_TACHE, key=f"type_tache_{row['commande_id']}")
+                titre = st.text_input("Titre", key=f"titre_{row['commande_id']}")
+                description = st.text_area("Description", value=f"{row['nom_service']} - {row['name']}", key=f"desc_{row['commande_id']}")
+                date = st.date_input("Date", value=datetime.now(), key=f"date_{row['commande_id']}")
+                heure = st.time_input("Heure de début", key=f"heure_{row['commande_id']}")
+                heure_fin = st.time_input("Heure de fin", key=f"heure_fin_{row['commande_id']}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.form_submit_button("Ajouter"):
+                        if not titre:
+                            st.error("Le titre est obligatoire")
+                        elif heure_fin <= heure:
+                            st.error("L'heure de fin doit être après l'heure de début")
+                        else:
+                            with sqlite3.connect(DB_PATH) as conn:
+                                c = conn.cursor()
+                                date_debut = datetime.combine(date, heure)
+                                date_fin = datetime.combine(date, heure_fin)
+                                duree = (date_fin - date_debut).total_seconds() / 3600
+                                c.execute("""
+                                    INSERT INTO taches (client_id, commande_id, type_tache, titre, description, date_debut, date_fin, temps_passe, est_process)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+                                """, (row['client_id'], row['commande_id'], type_tache, titre, description, date_debut, date_fin, duree))
+                                conn.commit()
+                            st.success("Tâche ajoutée au planning !")
+                            st.session_state['show_add_task_form'] = None
+                            st.rerun()
+                with col2:
+                    if st.form_submit_button("Annuler"):
+                        st.session_state['show_add_task_form'] = None
+                        st.rerun()
