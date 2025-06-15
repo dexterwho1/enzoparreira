@@ -644,4 +644,5 @@ elif page == "Commandes":
         exec(f.read(), globals())
 
 elif page == "Checklists":
-    import checklists
+    with open("checklists.py", encoding="utf-8") as f:
+        exec(f.read(), globals())
