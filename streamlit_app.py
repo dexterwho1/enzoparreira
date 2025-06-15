@@ -189,7 +189,7 @@ if file:
 STATUTS = ["n'a pas répondu", "à rappeller", "r1", "pas intérréssé", "signé"]
 
 # --- Navigation ---
-PAGES = ["Dashboard", "CRM Clients", "Commandes", "Planning", "Prospection", "KPI Prospection", "Checklists", "Modèles de checklist"]
+PAGES = ["Dashboard", "CRM Clients", "Commandes", "Planning", "Prospection", "KPI Prospection", "Checklists"]
 page = st.sidebar.radio("Navigation", PAGES, index=4)
 
 if page == "Prospection":
@@ -645,8 +645,4 @@ elif page == "Commandes":
 
 elif page == "Checklists":
     with open("checklists.py", encoding="utf-8") as f:
-        exec(f.read(), globals())
-
-elif page == "Modèles de checklist":
-    with open("modeles_checklist.py", encoding="utf-8") as f:
         exec(f.read(), globals())
