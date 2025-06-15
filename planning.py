@@ -549,18 +549,25 @@ if 'show_task_form' in st.session_state and st.session_state.show_task_form:
             # Liste des clients
             with sqlite3.connect(DB_PATH) as conn:
                 df_clients = pd.read_sql_query("SELECT client_id, name FROM clients", conn)
-            client_id = st.selectbox("Client", df_clients['name'].tolist())
-            client_id = df_clients[df_clients['name'] == client_id]['client_id'].iloc[0] if client_id else None
-            
+            client_name_to_id = {row['name']: row['client_id'] for _, row in df_clients.iterrows()}
+            client_names = list(client_name_to_id.keys())
+            client_name = st.selectbox("Client", client_names)
+            client_id = client_name_to_id[client_name] if client_name else None
             # Liste des commandes du client
             if client_id:
                 with sqlite3.connect(DB_PATH) as conn:
                     df_commandes = pd.read_sql_query(
                         "SELECT commande_id, nom_service FROM commandes WHERE client_id = ?",
-                        conn, params=(client_id,)
+                        conn, params=(int(client_id),)
                     )
-                commande_id = st.selectbox("Commande", df_commandes['nom_service'].tolist())
-                commande_id = df_commandes[df_commandes['nom_service'] == commande_id]['commande_id'].iloc[0] if commande_id else None
+                if not df_commandes.empty:
+                    commande_name_to_id = {row['nom_service']: row['commande_id'] for _, row in df_commandes.iterrows()}
+                    commande_names = list(commande_name_to_id.keys())
+                    commande_name = st.selectbox("Commande", commande_names)
+                    commande_id = commande_name_to_id[commande_name] if commande_name else None
+                else:
+                    st.info("Aucune commande trouvée pour ce client.")
+                    commande_id = None
         else:
             client_id = None
             commande_id = None
