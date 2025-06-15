@@ -44,9 +44,81 @@ init_checklist_tables()
 
 st.title("Checklists")
 
+
+def show_new_checklist_form():
+    """Affiche le formulaire de création de checklist."""
+    with st.form("form_new_checklist"):
+        nom = st.text_input("Nom de la checklist")
+        description = st.text_area("Description")
+        # Préselection du modèle si on vient de cliquer sur un modèle
+        templates_options = ["Aucun"]
+        templates_ids = [None]
+        with sqlite3.connect(DB_PATH) as conn:
+            templates_df = pd.read_sql_query("SELECT * FROM checklist_templates", conn)
+            for _, t in templates_df.iterrows():
+                templates_options.append(t['nom'])
+                templates_ids.append(t['id'])
+        preselect_tpl_nom = st.session_state.get('preselect_tpl_nom')
+        if preselect_tpl_nom and preselect_tpl_nom in templates_options:
+            idx_tpl = templates_options.index(preselect_tpl_nom)
+        else:
+            idx_tpl = 0
+        template_label = st.selectbox("Modèle (optionnel)", templates_options, index=idx_tpl)
+        tpl_id = templates_ids[templates_options.index(template_label)] if template_label != "Aucun" else None
+        commandes_options = ["Aucune"]
+        commandes_ids = [None]
+        with sqlite3.connect(DB_PATH) as conn:
+            commandes_df = pd.read_sql_query(
+                "SELECT c.commande_id, c.nom_service, cl.name as client FROM commandes c "
+                "LEFT JOIN clients cl ON c.client_id = cl.client_id ORDER BY c.commande_id DESC",
+                conn,
+            )
+            for _, c in commandes_df.iterrows():
+                commandes_options.append(f"{c['client']} - {c['nom_service']} (ID:{c['commande_id']})")
+                commandes_ids.append(c['commande_id'])
+        commande_label = st.selectbox("Associer à une commande (optionnel)", commandes_options)
+        commande_id = commandes_ids[commandes_options.index(commande_label)] if commande_label != "Aucune" else None
+        submitted = st.form_submit_button("Créer")
+        if submitted and nom:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute(
+                    "INSERT INTO checklists (nom, description, commande_id, process_id, template_id, date_creation) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (nom, description, commande_id, None, tpl_id, datetime.now().isoformat()),
+                )
+                checklist_id = c.lastrowid
+                if tpl_id:
+                    items = pd.read_sql_query(
+                        "SELECT * FROM checklist_template_items WHERE template_id=? ORDER BY ordre",
+                        conn,
+                        params=(tpl_id,),
+                    )
+                    for i, item in items.iterrows():
+                        c.execute(
+                            "INSERT INTO checklist_items (checklist_id, texte, fait, ordre) VALUES (?, ?, 0, ?)",
+                            (checklist_id, item['texte'], item['ordre']),
+                        )
+                conn.commit()
+            st.success("Checklist créée !")
+            st.session_state['show_new_checklist'] = False
+            st.session_state['preselect_tpl_id'] = None
+            st.session_state['preselect_tpl_nom'] = None
+            st.rerun()
+        if st.form_submit_button("Annuler"):
+            st.session_state['show_new_checklist'] = False
+            st.session_state['preselect_tpl_id'] = None
+            st.session_state['preselect_tpl_nom'] = None
+            st.rerun()
+
+
 tab1, tab2 = st.tabs(["Mes checklists", "Modèles de checklist"])
 
 with tab1:
+    if st.button("Créer une checklist", key="create_blank_checklist"):
+        st.session_state['show_new_checklist'] = True
+        st.session_state['preselect_tpl_id'] = None
+        st.session_state['preselect_tpl_nom'] = None
     # --- Liste des checklists existantes ---
     with sqlite3.connect(DB_PATH) as conn:
         checklists = pd.read_sql_query("SELECT * FROM checklists ORDER BY date_creation DESC", conn)
@@ -88,6 +160,9 @@ with tab1:
                     conn.commit()
                 st.success("Checklist supprimée !")
                 st.rerun()
+
+    if st.session_state.get('show_new_checklist'):
+        show_new_checklist_form()
 
 with tab2:
     st.header("Modèles de checklist")
@@ -151,55 +226,5 @@ with tab2:
                         conn.commit()
                     st.success("Modèle supprimé !")
                     st.rerun()
-    # Formulaire de création de checklist (seulement ici)
     if st.session_state.get('show_new_checklist'):
-        with st.form("form_new_checklist"):
-            nom = st.text_input("Nom de la checklist")
-            description = st.text_area("Description")
-            # Préselection du modèle si on vient de cliquer sur un modèle
-            templates_options = ["Aucun"]
-            templates_ids = [None]
-            with sqlite3.connect(DB_PATH) as conn:
-                templates_df = pd.read_sql_query("SELECT * FROM checklist_templates", conn)
-                for _, t in templates_df.iterrows():
-                    templates_options.append(t['nom'])
-                    templates_ids.append(t['id'])
-            preselect_tpl_id = st.session_state.get('preselect_tpl_id')
-            preselect_tpl_nom = st.session_state.get('preselect_tpl_nom')
-            if preselect_tpl_nom and preselect_tpl_nom in templates_options:
-                idx_tpl = templates_options.index(preselect_tpl_nom)
-            else:
-                idx_tpl = 0
-            template_label = st.selectbox("Modèle (optionnel)", templates_options, index=idx_tpl)
-            tpl_id = templates_ids[templates_options.index(template_label)] if template_label != "Aucun" else None
-            commandes_options = ["Aucune"]
-            commandes_ids = [None]
-            with sqlite3.connect(DB_PATH) as conn:
-                commandes_df = pd.read_sql_query("SELECT c.commande_id, c.nom_service, cl.name as client FROM commandes c LEFT JOIN clients cl ON c.client_id = cl.client_id ORDER BY c.commande_id DESC", conn)
-                for _, c in commandes_df.iterrows():
-                    commandes_options.append(f"{c['client']} - {c['nom_service']} (ID:{c['commande_id']})")
-                    commandes_ids.append(c['commande_id'])
-            commande_label = st.selectbox("Associer à une commande (optionnel)", commandes_options)
-            commande_id = commandes_ids[commandes_options.index(commande_label)] if commande_label != "Aucune" else None
-            submitted = st.form_submit_button("Créer")
-            if submitted and nom:
-                with sqlite3.connect(DB_PATH) as conn:
-                    c = conn.cursor()
-                    c.execute("INSERT INTO checklists (nom, description, commande_id, process_id, template_id, date_creation) VALUES (?, ?, ?, ?, ?, ?)", (nom, description, commande_id, None, tpl_id, datetime.now().isoformat()))
-                    checklist_id = c.lastrowid
-                    # Si modèle choisi, pré-remplir les items
-                    if tpl_id:
-                        items = pd.read_sql_query("SELECT * FROM checklist_template_items WHERE template_id=? ORDER BY ordre", conn, params=(tpl_id,))
-                        for i, item in items.iterrows():
-                            c.execute("INSERT INTO checklist_items (checklist_id, texte, fait, ordre) VALUES (?, ?, 0, ?)", (checklist_id, item['texte'], item['ordre']))
-                    conn.commit()
-                st.success("Checklist créée !")
-                st.session_state['show_new_checklist'] = False
-                st.session_state['preselect_tpl_id'] = None
-                st.session_state['preselect_tpl_nom'] = None
-                st.rerun()
-            if st.form_submit_button("Annuler"):
-                st.session_state['show_new_checklist'] = False
-                st.session_state['preselect_tpl_id'] = None
-                st.session_state['preselect_tpl_nom'] = None
-                st.rerun() 
+        show_new_checklist_form()
