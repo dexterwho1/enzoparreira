@@ -389,7 +389,7 @@ with tab2:
                                                 st.session_state['retard_date'] = None
                                                 st.session_state['retard_time'] = None
                                                 st.rerun()
-                            if st.button("Éditer", key=f"edit_{task['tache_id']}"):
+                            if st.button("Éditer", key=f"edit_{task['tache_id']}_mois"):
                                 st.session_state['edit_task_id'] = task['tache_id']
                                 st.rerun()
 
@@ -531,7 +531,7 @@ with tab3:
                                             st.session_state['retard_date'] = None
                                             st.session_state['retard_time'] = None
                                             st.rerun()
-                            if st.button("Éditer", key=f"edit_{task['tache_id']}"):
+                            if st.button("Éditer", key=f"edit_{task['tache_id']}_hebdo"):
                                 st.session_state['edit_task_id'] = task['tache_id']
                                 st.rerun()
 
