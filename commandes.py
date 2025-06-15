@@ -137,13 +137,33 @@ def get_jours_restant(row):
         return f"{(date_fin - today).days} j restants"
     return "-"
 
+# --- Calcul du coût à l'heure pour chaque commande ---
+def get_cout_heure_commande(commande_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        prix = pd.read_sql_query("SELECT prix FROM commandes WHERE commande_id = ?", conn, params=(commande_id,)).iloc[0]['prix'] or 0
+        taches = pd.read_sql_query("SELECT date_debut, temps_passe FROM taches WHERE commande_id = ?", conn, params=(commande_id,))
+        total_heures = 0
+        for _, row in taches.iterrows():
+            if row.get('temps_passe'):
+                try:
+                    total_heures += float(row['temps_passe'].replace('h','').replace(',','.'))
+                except:
+                    pass
+        if total_heures == 0 and not taches.empty:
+            # Si tu as un champ date_fin, tu peux le faire ici
+            pass
+        if total_heures > 0:
+            return round(prix / total_heures, 2)
+        else:
+            return None
+
 # --- Affichage du tableau ---
 if df.empty:
     st.info("Aucune commande trouvée.")
 else:
     st.write("")
-    headers = ["Client", "Nom du service", "Date début", "Date fin", "Prix", "Statut", "Action"]
-    col_widths = [2,2,1.5,1.5,1,1.5,1.5]
+    headers = ["Client", "Nom du service", "Date début", "Date fin", "Prix", "Statut", "Action", "Coût à l'heure"]
+    col_widths = [2,2,1.5,1.5,1,1.5,1.5,1.5]
     header_cols = st.columns(col_widths)
     for i, h in enumerate(headers):
         header_cols[i].markdown(f"**{h}**")
@@ -205,3 +225,10 @@ else:
         # if not (tel_clean.startswith("06") or tel_clean.startswith("07")):
         #     st.error(f"Ligne {idx+2} ignorée : numéro non mobile FR (06, 07, +336, +337).")
         #     continue 
+
+        # Calcul du coût à l'heure
+        cout_heure = get_cout_heure_commande(row['commande_id'])
+        if cout_heure:
+            line_cols[7].write(f"{cout_heure} €/h")
+        else:
+            line_cols[7].write("-")

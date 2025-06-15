@@ -206,6 +206,36 @@ else:
             st.sidebar.markdown(f"**Lien Google Maps :** {'[Maps](' + link + ')' if link else 'Non renseigné'}")
             st.sidebar.markdown(f"**Avis :** {avis if avis else 'Non renseigné'} | **Note :** {note if note else 'Non renseigné'}")
         
+        # Calcul du coût à l'heure pour chaque client
+        def get_cout_heure_client(client_id):
+            with sqlite3.connect(DB_PATH) as conn:
+                # Somme des prix des commandes
+                total_facture = pd.read_sql_query("SELECT SUM(prix) as total FROM commandes WHERE client_id = ?", conn, params=(client_id,)).iloc[0]['total'] or 0
+                # Somme des heures passées sur les tâches
+                taches = pd.read_sql_query("SELECT date_debut, temps_passe FROM taches WHERE client_id = ?", conn, params=(client_id,))
+                total_heures = 0
+                for _, row in taches.iterrows():
+                    if row.get('temps_passe'):
+                        try:
+                            total_heures += float(row['temps_passe'].replace('h','').replace(',','.'))
+                        except:
+                            pass
+                # Si pas de champ temps_passe, on peut calculer la durée entre date_debut et date_fin si dispo
+                # (à adapter selon ta structure)
+                if total_heures == 0 and not taches.empty:
+                    # Si tu as un champ date_fin, tu peux le faire ici
+                    pass
+                if total_heures > 0:
+                    return round(total_facture / total_heures, 2)
+                else:
+                    return None
+        
+        cout_heure = get_cout_heure_client(client_row['client_id'])
+        if cout_heure:
+            st.sidebar.markdown(f"**Coût à l'heure :** {cout_heure} €/h")
+        else:
+            st.sidebar.markdown("**Coût à l'heure :** Non calculable")
+        
         if st.sidebar.button("Fermer", key="close_client_details"):
             st.session_state['show_client_details'] = None
             st.rerun() 
