@@ -212,19 +212,21 @@ else:
                 # Somme des prix des commandes
                 total_facture = pd.read_sql_query("SELECT SUM(prix) as total FROM commandes WHERE client_id = ?", conn, params=(client_id,)).iloc[0]['total'] or 0
                 # Somme des heures passées sur les tâches
-                taches = pd.read_sql_query("SELECT date_debut, temps_passe FROM taches WHERE client_id = ?", conn, params=(client_id,))
+                taches = pd.read_sql_query("SELECT date_debut, date_fin, temps_passe FROM taches WHERE client_id = ?", conn, params=(client_id,))
                 total_heures = 0
                 for _, row in taches.iterrows():
-                    if row.get('temps_passe'):
+                    if row.get('temps_passe') and not pd.isnull(row['temps_passe']):
                         try:
-                            total_heures += float(row['temps_passe'].replace('h','').replace(',','.'))
+                            total_heures += float(row['temps_passe'])
                         except:
                             pass
-                # Si pas de champ temps_passe, on peut calculer la durée entre date_debut et date_fin si dispo
-                # (à adapter selon ta structure)
-                if total_heures == 0 and not taches.empty:
-                    # Si tu as un champ date_fin, tu peux le faire ici
-                    pass
+                    elif pd.notnull(row.get('date_debut')) and pd.notnull(row.get('date_fin')):
+                        try:
+                            debut = pd.to_datetime(row['date_debut'])
+                            fin = pd.to_datetime(row['date_fin'])
+                            total_heures += (fin - debut).total_seconds() / 3600
+                        except:
+                            pass
                 if total_heures > 0:
                     return round(total_facture / total_heures, 2)
                 else:

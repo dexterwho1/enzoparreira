@@ -33,6 +33,8 @@ def init_db():
         titre TEXT,
         description TEXT,
         date_debut DATETIME,
+        date_fin DATETIME,
+        temps_passe FLOAT,
         statut TEXT DEFAULT 'à faire',
         est_process BOOLEAN DEFAULT 0,
         service TEXT,
@@ -142,6 +144,20 @@ def afficher_details_telephone_sidebar(id_):
             if st.sidebar.button("Fermer", key=f"close_tel_details_{id_}"):
                 st.session_state['show_client_details'] = None
                 st.rerun()
+
+def migrate_db():
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        # Ajout du champ date_fin si absent
+        c.execute("PRAGMA table_info(taches)")
+        columns = [col[1] for col in c.fetchall()]
+        if "date_fin" not in columns:
+            c.execute("ALTER TABLE taches ADD COLUMN date_fin DATETIME")
+        if "temps_passe" not in columns:
+            c.execute("ALTER TABLE taches ADD COLUMN temps_passe FLOAT")
+        conn.commit()
+
+migrate_db()
 
 # Initialisation de la base de données
 init_db()
@@ -373,6 +389,9 @@ with tab2:
                                                 st.session_state['retard_date'] = None
                                                 st.session_state['retard_time'] = None
                                                 st.rerun()
+                            if st.button("Éditer", key=f"edit_{task['tache_id']}"):
+                                st.session_state['edit_task_id'] = task['tache_id']
+                                st.rerun()
 
 # --- Affichage dans la sidebar depuis le planning ---
 if st.session_state.get('show_client_details'):
@@ -512,6 +531,9 @@ with tab3:
                                             st.session_state['retard_date'] = None
                                             st.session_state['retard_time'] = None
                                             st.rerun()
+                            if st.button("Éditer", key=f"edit_{task['tache_id']}"):
+                                st.session_state['edit_task_id'] = task['tache_id']
+                                st.rerun()
 
 # Bouton flottant d'ajout de tâche
 if st.button("➕", help="Ajouter une tâche"):
@@ -547,7 +569,8 @@ if 'show_task_form' in st.session_state and st.session_state.show_task_form:
         titre = st.text_input("Titre")
         description = st.text_area("Description")
         date = st.date_input("Date")
-        heure = st.time_input("Heure")
+        heure = st.time_input("Heure de début")
+        heure_fin = st.time_input("Heure de fin")
         
         # --- Pré-remplissage du commentaire avec le numéro de téléphone pour r1/à rappeller ---
         # À placer dans le formulaire d'ajout/édition de tâche (planning)
@@ -577,16 +600,20 @@ if 'show_task_form' in st.session_state and st.session_state.show_task_form:
             if st.form_submit_button("Ajouter"):
                 if not titre:
                     st.error("Le titre est obligatoire")
+                elif heure_fin <= heure:
+                    st.error("L'heure de fin doit être après l'heure de début")
                 else:
                     with sqlite3.connect(DB_PATH) as conn:
                         c = conn.cursor()
                         date_debut = datetime.combine(date, heure)
+                        date_fin = datetime.combine(date, heure_fin)
+                        duree = (date_fin - date_debut).total_seconds() / 3600
                         c.execute("""
                             INSERT INTO taches (client_id, commande_id, type_tache, titre, description, 
-                                            date_debut, est_process)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                                            date_debut, date_fin, temps_passe, est_process)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (client_id, commande_id, type_tache, titre, description, 
-                            date_debut, est_process))
+                            date_debut, date_fin, duree, est_process))
                         conn.commit()
                     st.success("Tâche ajoutée avec succès !")
                     st.session_state.show_task_form = False
@@ -594,4 +621,41 @@ if 'show_task_form' in st.session_state and st.session_state.show_task_form:
         with col2:
             if st.form_submit_button("Annuler"):
                 st.session_state.show_task_form = False
+                st.rerun()
+
+# --- Formulaire d'édition de tâche si une tâche est sélectionnée pour édition ---
+if st.session_state.get('edit_task_id'):
+    tache_id = st.session_state['edit_task_id']
+    with sqlite3.connect(DB_PATH) as conn:
+        tache = pd.read_sql_query("SELECT * FROM taches WHERE tache_id = ?", conn, params=(tache_id,)).iloc[0]
+    with st.form(f"edit_task_{tache_id}"):
+        st.subheader("Modifier la tâche")
+        titre = st.text_input("Titre", value=tache['titre'])
+        description = st.text_area("Description", value=tache['description'])
+        date = st.date_input("Date", value=pd.to_datetime(tache['date_debut']).date())
+        heure = st.time_input("Heure de début", value=pd.to_datetime(tache['date_debut']).time())
+        heure_fin = st.time_input("Heure de fin", value=pd.to_datetime(tache['date_fin']).time() if pd.notnull(tache['date_fin']) else pd.to_datetime(tache['date_debut']).time())
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.form_submit_button("Enregistrer"):
+                if not titre:
+                    st.error("Le titre est obligatoire")
+                elif heure_fin <= heure:
+                    st.error("L'heure de fin doit être après l'heure de début")
+                else:
+                    with sqlite3.connect(DB_PATH) as conn:
+                        c = conn.cursor()
+                        date_debut = datetime.combine(date, heure)
+                        date_fin = datetime.combine(date, heure_fin)
+                        duree = (date_fin - date_debut).total_seconds() / 3600
+                        c.execute("""
+                            UPDATE taches SET titre=?, description=?, date_debut=?, date_fin=?, temps_passe=? WHERE tache_id=?
+                        """, (titre, description, date_debut, date_fin, duree, tache_id))
+                        conn.commit()
+                    st.success("Tâche modifiée avec succès !")
+                    st.session_state['edit_task_id'] = None
+                    st.rerun()
+        with col2:
+            if st.form_submit_button("Annuler"):
+                st.session_state['edit_task_id'] = None
                 st.rerun() 

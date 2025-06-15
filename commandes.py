@@ -141,17 +141,21 @@ def get_jours_restant(row):
 def get_cout_heure_commande(commande_id):
     with sqlite3.connect(DB_PATH) as conn:
         prix = pd.read_sql_query("SELECT prix FROM commandes WHERE commande_id = ?", conn, params=(commande_id,)).iloc[0]['prix'] or 0
-        taches = pd.read_sql_query("SELECT date_debut, temps_passe FROM taches WHERE commande_id = ?", conn, params=(commande_id,))
+        taches = pd.read_sql_query("SELECT date_debut, date_fin, temps_passe FROM taches WHERE commande_id = ?", conn, params=(commande_id,))
         total_heures = 0
         for _, row in taches.iterrows():
-            if row.get('temps_passe'):
+            if row.get('temps_passe') and not pd.isnull(row['temps_passe']):
                 try:
-                    total_heures += float(row['temps_passe'].replace('h','').replace(',','.'))
+                    total_heures += float(row['temps_passe'])
                 except:
                     pass
-        if total_heures == 0 and not taches.empty:
-            # Si tu as un champ date_fin, tu peux le faire ici
-            pass
+            elif pd.notnull(row.get('date_debut')) and pd.notnull(row.get('date_fin')):
+                try:
+                    debut = pd.to_datetime(row['date_debut'])
+                    fin = pd.to_datetime(row['date_fin'])
+                    total_heures += (fin - debut).total_seconds() / 3600
+                except:
+                    pass
         if total_heures > 0:
             return round(prix / total_heures, 2)
         else:
