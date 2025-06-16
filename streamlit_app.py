@@ -6,6 +6,7 @@ from datetime import datetime
 import hashlib
 import re
 from glob import glob
+import requests
 
 # Configuration de la page
 st.set_page_config(page_title="CRM Agence", layout="wide")
@@ -727,3 +728,38 @@ elif page == "Générateur de site":
                 st.components.v1.html(f"<h1>{nom}</h1>", height=100)
                 st.subheader("Prévisualisation du site généré :")
                 st.components.v1.html(html, height=800, scrolling=True)
+
+def download_image(url, save_path):
+    """Télécharge une image depuis une URL et la sauve dans le chemin spécifié"""
+    try:
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
+            return True
+        else:
+            st.error(f"Erreur lors du téléchargement de l'image: {response.status_code}")
+            return False
+    except Exception as e:
+        st.error(f"Erreur lors du téléchargement de l'image: {str(e)}")
+        return False
+
+def page_generateur_site():
+    st.title("Générateur de Site")
+    
+    # Upload d'image
+    st.subheader("Ajouter une image")
+    uploaded_file = st.file_uploader("Choisir une image", type=['png', 'jpg', 'jpeg'])
+    if uploaded_file is not None:
+        # Afficher l'image
+        st.image(uploaded_file, caption=uploaded_file.name)
+        
+        # Bouton pour utiliser l'image
+        if st.button("Utiliser cette image"):
+            # Ici on peut traiter l'image temporairement sans la sauvegarder
+            # Par exemple, l'afficher dans le template ou la convertir en base64
+            st.success(f"Image {uploaded_file.name} prête à être utilisée dans le site")
+    
+    # Reste du code existant pour la génération de site
+    # ... existing code ...
