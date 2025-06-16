@@ -197,8 +197,7 @@ PAGES = [
     "Prospection",
     "KPI Prospection",
     "Checklists",
-    "Automatisation - Facture",
-    "Automatisation - Site internet"
+    "Automatisation"
 ]
 page = st.sidebar.radio("Navigation", PAGES, index=4)
 
@@ -673,9 +672,12 @@ elif page == "Checklists":
     with open("checklists.py", encoding="utf-8") as f:
         exec(f.read(), globals())
 
-elif page == "Automatisation - Facture":
-    st.title("Automatisation - Facture")
-    st.info("Ici, vous pourrez automatiser la gestion des factures.")
-elif page == "Automatisation - Site internet":
-    st.title("Automatisation - Site internet")
-    st.info("Ici, vous pourrez automatiser la gestion des sites internet.")
+elif page == "Automatisation":
+    st.title("Automatisation")
+    sous_page = st.radio("Choisissez une section :", ["Facture", "Site internet"])
+    if sous_page == "Facture":
+        st.header("Automatisation - Facture")
+        st.info("Ici, vous pourrez automatiser la gestion des factures.")
+    elif sous_page == "Site internet":
+        st.header("Automatisation - Site internet")
+        st.info("Ici, vous pourrez automatiser la gestion des sites internet.")
