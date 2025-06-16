@@ -44,61 +44,24 @@ init_checklist_tables()
 
 st.title("Checklists")
 
-# --- Filtres avancés ---
 tab1, tab2 = st.tabs(["Mes checklists", "Modèles de checklist"])
 
 with tab1:
-    # Filtres principaux
-    filtre_type = st.radio("Associer avec :", ["Toutes", "Commande", "Process", "Market", "Aucune"], horizontal=True)
-    commande_id = process_id = market_id = None
-    commandes_options, commandes_df = get_commandes_options()
-    # Dummy pour process/market (à adapter selon ta structure réelle)
-    process_options = ["Aucun"] + [f"Process {i}" for i in range(1, 4)]
-    market_options = ["Aucun"] + [f"Market {i}" for i in range(1, 3)]
-    if filtre_type == "Commande":
-        commande_label = st.selectbox("Choisir une commande", ["Aucune"] + commandes_options)
-        if commande_label != "Aucune":
-            commande_id = int(commande_label.split("ID:")[-1].replace(")", ""))
-    elif filtre_type == "Process":
-        process_label = st.selectbox("Choisir un process", process_options)
-        if process_label != "Aucun":
-            process_id = int(process_label.split(" ")[-1])
-    elif filtre_type == "Market":
-        market_label = st.selectbox("Choisir un market", market_options)
-        if market_label != "Aucun":
-            market_id = int(market_label.split(" ")[-1])
+    # --- Récupération des commandes pour le selectbox ---
+    def get_commandes_options():
+        with sqlite3.connect(DB_PATH) as conn:
+            commandes = pd.read_sql_query("SELECT c.commande_id, c.nom_service, cl.name as client FROM commandes c LEFT JOIN clients cl ON c.client_id = cl.client_id ORDER BY c.commande_id DESC", conn)
+        return [f"{row['client']} - {row['nom_service']} (ID:{row['commande_id']})" for _, row in commandes.iterrows()], commandes
 
-    # --- Récupération des checklists filtrées ---
-    query = "SELECT * FROM checklists"
-    params = []
-    where = []
-    if filtre_type == "Commande" and commande_id:
-        where.append("commande_id=?")
-        params.append(commande_id)
-    elif filtre_type == "Process" and process_id:
-        where.append("process_id=?")
-        params.append(process_id)
-    elif filtre_type == "Market" and market_id:
-        where.append("template_id=?")
-        params.append(market_id)
-    elif filtre_type == "Aucune":
-        where.append("commande_id IS NULL AND process_id IS NULL AND template_id IS NULL")
-    if where:
-        query += " WHERE " + " AND ".join(where)
-    query += " ORDER BY date_creation DESC"
+    # --- Récupération des modèles pour le selectbox ---
+    def get_templates_options():
+        with sqlite3.connect(DB_PATH) as conn:
+            templates = pd.read_sql_query("SELECT * FROM checklist_templates", conn)
+        return ["Aucun"] + templates['nom'].tolist(), templates
+
+    # --- Liste des checklists existantes ---
     with sqlite3.connect(DB_PATH) as conn:
-        checklists = pd.read_sql_query(query, conn, params=params)
-
-    # --- Couleurs par type d'association ---
-    def get_bulle_color(cl):
-        if cl['commande_id']:
-            return "#e3f2fd", "Commande"
-        elif cl['process_id']:
-            return "#e8f5e9", "Process"
-        elif cl['template_id']:
-            return "#fff3e0", "Market"
-        else:
-            return "#ececec", "Aucune"
+        checklists = pd.read_sql_query("SELECT * FROM checklists ORDER BY date_creation DESC", conn)
 
     if st.button("Créer une checklist"):
         st.session_state['show_new_checklist'] = True
@@ -106,6 +69,7 @@ with tab1:
         with st.form("form_new_checklist"):
             nom = st.text_input("Nom de la checklist")
             description = st.text_area("Description")
+            commandes_options, commandes_df = get_commandes_options()
             commande_label = st.selectbox("Associer à une commande (optionnel)", ["Aucune"] + commandes_options)
             commande_id = None
             if commande_label != "Aucune":
@@ -136,12 +100,8 @@ with tab1:
 
     if not checklists.empty:
         for _, cl in checklists.iterrows():
-            color, type_label = get_bulle_color(cl)
-            st.markdown(f"""
-            <div style='background:{color};border-radius:15px;padding:20px;margin-bottom:20px;'>
-                <h4 style='margin-bottom:5px;'>{cl['nom']} <span style='font-size:0.8em;background:#bbb;border-radius:8px;padding:2px 8px;margin-left:10px;'>{type_label}</span></h4>
-                <p style='margin-top:0;color:#555;'>{cl['description']}</p>
-            """, unsafe_allow_html=True)
+            st.subheader(f"Checklist : {cl['nom']}")
+            st.write(cl['description'])
             with sqlite3.connect(DB_PATH) as conn:
                 items = pd.read_sql_query("SELECT * FROM checklist_items WHERE checklist_id=? ORDER BY ordre", conn, params=(cl['id'],))
             for idx, item in items.iterrows():
@@ -176,7 +136,6 @@ with tab1:
                     conn.commit()
                 st.success("Checklist supprimée !")
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
 
 with tab2:
     st.header("Modèles de checklist")
