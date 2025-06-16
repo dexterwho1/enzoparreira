@@ -702,7 +702,10 @@ elif page == "Générateur de site":
         with open(f'templates_sites/{template_choice}', 'r', encoding='utf-8') as f:
             html = f.read()
         # Remplacement des balises (à adapter selon le template)
-        html = html.replace('{{nom}}', nom)
+        if '{{nom}}' in html:
+            html = html.replace('{{nom}}', nom)
+        else:
+            html = html.replace('Demestre Couverture', nom)
         html = html.replace('{{adresse}}', adresse)
         html = html.replace('{{telephone}}', telephone)
         html = html.replace('{{email}}', email)
