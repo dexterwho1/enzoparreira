@@ -161,13 +161,21 @@ def get_cout_heure_commande(commande_id):
         else:
             return None
 
+# --- Ajout de la colonne devis_envoye si elle n'existe pas ---
+with sqlite3.connect(DB_PATH) as conn:
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE commandes ADD COLUMN devis_envoye INTEGER DEFAULT 0")
+    except Exception:
+        pass  # La colonne existe déjà
+
 # --- Affichage du tableau ---
 if df.empty:
     st.info("Aucune commande trouvée.")
 else:
     st.write("")
-    headers = ["Client", "Nom du service", "Date début", "Date fin", "Prix", "Statut", "Action", "Coût à l'heure"]
-    col_widths = [2,2,1.5,1.5,1,1.5,1.5,1.5]
+    headers = ["Client", "Nom du service", "Date début", "Date fin", "Prix", "Statut", "Devis envoyé", "Action", "Coût à l'heure"]
+    col_widths = [2,2,1.5,1.5,1,1.5,1,1.5,1.5]
     header_cols = st.columns(col_widths)
     for i, h in enumerate(headers):
         header_cols[i].markdown(f"**{h}**")
@@ -187,29 +195,37 @@ else:
         if statut == "À l'heure" and jours != "-":
             statut_label += f" <span style='color:gray;font-size:0.9em'>({jours})</span>"
         line_cols[5].markdown(statut_label, unsafe_allow_html=True)
-        checked = is_livre
-        if line_cols[5].checkbox("", value=checked, key=f"livre_{row['commande_id']}"):
-            if not is_livre:
+        # Checkbox Devis envoyé
+        devis_envoye = bool(row.get('devis_envoye', 0))
+        if line_cols[6].checkbox("", value=devis_envoye, key=f"devis_{row['commande_id']}"):
+            if not devis_envoye:
                 with sqlite3.connect(DB_PATH) as conn:
                     c = conn.cursor()
-                    c.execute("UPDATE commandes SET statut=? WHERE commande_id=?", ("livré", row['commande_id']))
+                    c.execute("UPDATE commandes SET devis_envoye=1 WHERE commande_id=?", (row['commande_id'],))
+                    conn.commit()
+                st.rerun()
+        else:
+            if devis_envoye:
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE commandes SET devis_envoye=0 WHERE commande_id=?", (row['commande_id'],))
                     conn.commit()
                 st.rerun()
         # Actions
-        if line_cols[6].button("Modifier", key=f"edit_{row['commande_id']}"):
+        if line_cols[7].button("Modifier", key=f"edit_{row['commande_id']}"):
             st.session_state['edit_commande_id'] = row['commande_id']
-            st.rerun()
-        if line_cols[6].button("Supprimer", key=f"delete_{row['commande_id']}"):
+        if line_cols[7].button("Supprimer", key=f"delete_{row['commande_id']}"):
             st.session_state['delete_commande_id'] = row['commande_id']
             st.rerun()
-        if line_cols[6].button("Ajouter tâche", key=f"add_task_{row['commande_id']}"):
+        if line_cols[7].button("Ajouter tâche", key=f"add_task_{row['commande_id']}"):
             st.session_state['show_add_task_form'] = row['commande_id']
             st.session_state['add_task_client_id'] = row['client_id']
             st.session_state['add_task_commande_nom'] = row['nom_service']
             st.session_state['add_task_client_nom'] = row['name']
             st.rerun()
+        # Coût à l'heure
         cout_heure = get_cout_heure_commande(row['commande_id'])
-        line_cols[7].write(f"{cout_heure} €/h" if cout_heure else "-")
+        line_cols[8].write(f"{cout_heure} €/h" if cout_heure is not None else "-")
         # Affichage du formulaire juste sous la ligne concernée
         if st.session_state.get('show_add_task_form') == row['commande_id']:
             import planning
