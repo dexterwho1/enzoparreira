@@ -688,6 +688,7 @@ elif page == "Générateur de site":
     st.title("Générateur de site internet")
     # Liste des templates disponibles
     template_files = glob('templates_sites/*.html')
+    st.write(f"Templates trouvés : {template_files}")
     template_names = [os.path.basename(f) for f in template_files]
     template_choice = st.selectbox("Choisir un template", template_names)
     # Champs à remplir manuellement
@@ -699,18 +700,24 @@ elif page == "Générateur de site":
         description = st.text_area("Description rapide")
         submitted = st.form_submit_button("Prévisualiser")
     if submitted and template_choice:
-        with st.spinner('Génération de la prévisualisation...'):
-            with open(f'templates_sites/{template_choice}', 'r', encoding='utf-8') as f:
-                html = f.read()
-            # Remplacement des balises (à adapter selon le template)
-            if '{{nom}}' in html:
-                html = html.replace('{{nom}}', nom)
-            else:
-                html = html.replace('Demestre Couverture', nom)
-            html = html.replace('{{adresse}}', adresse)
-            html = html.replace('{{telephone}}', telephone)
-            html = html.replace('{{email}}', email)
-            html = html.replace('{{description}}', description)
+        file_path = f'templates_sites/{template_choice}'
+        st.write(f"Chemin du fichier tenté : {file_path}")
+        if not os.path.exists(file_path):
+            st.error(f"Le fichier {file_path} n'existe pas !")
+            html = ""
+        else:
+            with st.spinner('Génération de la prévisualisation...'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    html = f.read()
+                # Remplacement des balises (à adapter selon le template)
+                if '{{nom}}' in html:
+                    html = html.replace('{{nom}}', nom)
+                else:
+                    html = html.replace('Demestre Couverture', nom)
+                html = html.replace('{{adresse}}', adresse)
+                html = html.replace('{{telephone}}', telephone)
+                html = html.replace('{{email}}', email)
+                html = html.replace('{{description}}', description)
             st.subheader("HTML généré (debug) :")
             st.text_area("Code HTML généré", html, height=200)
             if not html.strip():
