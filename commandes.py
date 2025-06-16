@@ -195,6 +195,22 @@ else:
         if statut == "À l'heure" and jours != "-":
             statut_label += f" <span style='color:gray;font-size:0.9em'>({jours})</span>"
         line_cols[5].markdown(statut_label, unsafe_allow_html=True)
+        # Checkbox Livré
+        checked = is_livre
+        if line_cols[5].checkbox("Livré", value=checked, key=f"livre_{row['commande_id']}"):
+            if not is_livre:
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE commandes SET statut=? WHERE commande_id=?", ("livré", row['commande_id']))
+                    conn.commit()
+                st.rerun()
+        else:
+            if is_livre:
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE commandes SET statut=? WHERE commande_id=?", (None, row['commande_id']))
+                    conn.commit()
+                st.rerun()
         # Checkbox Devis envoyé
         devis_envoye = bool(row.get('devis_envoye', 0))
         if line_cols[6].checkbox("", value=devis_envoye, key=f"devis_{row['commande_id']}"):
@@ -215,7 +231,11 @@ else:
         if line_cols[7].button("Modifier", key=f"edit_{row['commande_id']}"):
             st.session_state['edit_commande_id'] = row['commande_id']
         if line_cols[7].button("Supprimer", key=f"delete_{row['commande_id']}"):
-            st.session_state['delete_commande_id'] = row['commande_id']
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute("DELETE FROM commandes WHERE commande_id=?", (row['commande_id'],))
+                conn.commit()
+            st.success("Commande supprimée !")
             st.rerun()
         if line_cols[7].button("Ajouter tâche", key=f"add_task_{row['commande_id']}"):
             st.session_state['show_add_task_form'] = row['commande_id']
