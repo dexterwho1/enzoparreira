@@ -629,8 +629,24 @@ elif page == "Dashboard":
         return f"{((val-prec)/prec)*100:+.1f}%"
     comp = pd.DataFrame({
         "Indicateur": ["Facturé", "Encaissé", "Appels", "RDV", "Nouveaux clients", "Taux horaire", "Missions terminées"],
-        "Cette semaine": [f"{facture:,.0f} €", f"{encaisse:,.0f} €", appels, rdv, nouveaux_clients, f"{taux_horaire} €/h", missions],
-        "Semaine dernière": [f"{facture_prec:,.0f} €", f"{encaisse_prec:,.0f} €", appels_prec, rdv_prec, nouveaux_clients_prec, f"{taux_horaire_prec} €/h", missions_prec],
+        "Cette semaine": [
+            f"{facture:,.0f} €",
+            f"{encaisse:,.0f} €",
+            str(appels),
+            str(rdv),
+            str(nouveaux_clients),
+            f"{taux_horaire} €/h",
+            str(missions)
+        ],
+        "Semaine dernière": [
+            f"{facture_prec:,.0f} €",
+            f"{encaisse_prec:,.0f} €",
+            str(appels_prec),
+            str(rdv_prec),
+            str(nouveaux_clients_prec),
+            f"{taux_horaire_prec} €/h",
+            str(missions_prec)
+        ],
         "Évolution": [evol(facture, facture_prec), evol(encaisse, encaisse_prec), evol(appels, appels_prec), evol(rdv, rdv_prec), evol(nouveaux_clients, nouveaux_clients_prec), evol(taux_horaire, taux_horaire_prec), evol(missions, missions_prec)]
     })
     st.table(comp)
