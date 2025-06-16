@@ -699,16 +699,17 @@ elif page == "Générateur de site":
         description = st.text_area("Description rapide")
         submitted = st.form_submit_button("Prévisualiser")
     if submitted and template_choice:
-        with open(f'templates_sites/{template_choice}', 'r', encoding='utf-8') as f:
-            html = f.read()
-        # Remplacement des balises (à adapter selon le template)
-        if '{{nom}}' in html:
-            html = html.replace('{{nom}}', nom)
-        else:
-            html = html.replace('Demestre Couverture', nom)
-        html = html.replace('{{adresse}}', adresse)
-        html = html.replace('{{telephone}}', telephone)
-        html = html.replace('{{email}}', email)
-        html = html.replace('{{description}}', description)
-        st.subheader("Prévisualisation du site généré :")
-        st.components.v1.html(html, height=800, scrolling=True)
+        with st.spinner('Génération de la prévisualisation...'):
+            with open(f'templates_sites/{template_choice}', 'r', encoding='utf-8') as f:
+                html = f.read()
+            # Remplacement des balises (à adapter selon le template)
+            if '{{nom}}' in html:
+                html = html.replace('{{nom}}', nom)
+            else:
+                html = html.replace('Demestre Couverture', nom)
+            html = html.replace('{{adresse}}', adresse)
+            html = html.replace('{{telephone}}', telephone)
+            html = html.replace('{{email}}', email)
+            html = html.replace('{{description}}', description)
+            st.subheader("Prévisualisation du site généré :")
+            st.components.v1.html(html, height=800, scrolling=True)
