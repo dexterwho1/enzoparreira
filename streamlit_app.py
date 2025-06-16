@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import hashlib
 import re
+from glob import glob
 
 # Configuration de la page
 st.set_page_config(page_title="CRM Agence", layout="wide")
@@ -197,7 +198,8 @@ PAGES = [
     "Prospection",
     "KPI Prospection",
     "Checklists",
-    "Automatisation"
+    "Automatisation",
+    "Générateur de site"
 ]
 page = st.sidebar.radio("Navigation", PAGES, index=4)
 
@@ -681,3 +683,29 @@ elif page == "Automatisation":
     elif sous_page == "Site internet":
         st.header("Automatisation - Site internet")
         st.info("Ici, vous pourrez automatiser la gestion des sites internet.")
+
+elif page == "Générateur de site":
+    st.title("Générateur de site internet")
+    # Liste des templates disponibles
+    template_files = glob('templates_sites/*.html')
+    template_names = [os.path.basename(f) for f in template_files]
+    template_choice = st.selectbox("Choisir un template", template_names)
+    # Champs à remplir manuellement
+    with st.form("infos_site_form"):
+        nom = st.text_input("Nom de l'entreprise")
+        adresse = st.text_input("Adresse")
+        telephone = st.text_input("Téléphone")
+        email = st.text_input("Email")
+        description = st.text_area("Description rapide")
+        submitted = st.form_submit_button("Prévisualiser")
+    if submitted and template_choice:
+        with open(f'templates_sites/{template_choice}', 'r', encoding='utf-8') as f:
+            html = f.read()
+        # Remplacement des balises (à adapter selon le template)
+        html = html.replace('{{nom}}', nom)
+        html = html.replace('{{adresse}}', adresse)
+        html = html.replace('{{telephone}}', telephone)
+        html = html.replace('{{email}}', email)
+        html = html.replace('{{description}}', description)
+        st.subheader("Prévisualisation du site généré :")
+        st.components.v1.html(html, height=800, scrolling=True)
