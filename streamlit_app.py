@@ -711,5 +711,12 @@ elif page == "Générateur de site":
             html = html.replace('{{telephone}}', telephone)
             html = html.replace('{{email}}', email)
             html = html.replace('{{description}}', description)
-            st.subheader("Prévisualisation du site généré :")
-            st.components.v1.html(html, height=800, scrolling=True)
+            st.subheader("HTML généré (debug) :")
+            st.text_area("Code HTML généré", html, height=200)
+            if not html.strip():
+                st.error("Le HTML généré est vide !")
+            else:
+                st.subheader("Test d'affichage minimal :")
+                st.components.v1.html(f"<h1>{nom}</h1>", height=100)
+                st.subheader("Prévisualisation du site généré :")
+                st.components.v1.html(html, height=800, scrolling=True)
