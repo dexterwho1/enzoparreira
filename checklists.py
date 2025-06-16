@@ -191,4 +191,17 @@ with tab2:
                     c.execute("DELETE FROM checklist_templates WHERE id=?", (tpl['id'],))
                     conn.commit()
                 st.success("Modèle supprimé !")
-                st.rerun() 
+                st.rerun()
+
+# --- DEBUG : Afficher les tables et leur contenu (5 premières lignes) ---
+if __name__ == "__main__":
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    print("Tables dans la base de données :")
+    for row in c.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+        print("-", row[0])
+        table = row[0]
+        res = c.execute(f"SELECT * FROM {table} LIMIT 5").fetchall()
+        print("  5 premières lignes :", res)
+    conn.close() 
