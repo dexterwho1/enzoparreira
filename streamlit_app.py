@@ -695,10 +695,14 @@ elif page == "Générateur de site":
     # Champs à remplir manuellement
     with st.form("infos_site_form"):
         nom = st.text_input("Nom de l'entreprise")
-        adresse = st.text_input("Adresse")
-        telephone = st.text_input("Téléphone")
-        email = st.text_input("Email")
-        description = st.text_area("Description rapide")
+        variableadressecomplete = st.text_input("Adresse complète")
+        variabletelephone = st.text_input("Téléphone")
+        variablemail = st.text_input("Email")
+        ville = st.text_input("Ville")
+        datedecreation = st.text_input("Date de création")
+        region = st.text_input("Région")
+        enzo_parreira = st.text_input("Copyright / Nom de l'auteur")
+        logo_url = st.text_input("URL du logo")
         submitted = st.form_submit_button("Prévisualiser")
     if submitted and template_choice:
         file_path = f'templates_sites/{template_choice}'
@@ -711,14 +715,26 @@ elif page == "Générateur de site":
                 with open(file_path, 'r', encoding='utf-8') as f:
                     html = f.read()
                 # Remplacement des balises (à adapter selon le template)
-                if '{{nom}}' in html:
-                    html = html.replace('{{nom}}', nom)
-                else:
-                    html = html.replace('Demestre Couverture', nom)
-                html = html.replace('{{adresse}}', adresse)
-                html = html.replace('{{telephone}}', telephone)
-                html = html.replace('{{email}}', email)
-                html = html.replace('{{description}}', description)
+                # Remplacement par balises si elles existent, sinon par valeurs fixes
+                html = html.replace('{{nom}}', nom)
+                html = html.replace('{{adresse}}', variableadressecomplete)
+                html = html.replace('{{telephone}}', variabletelephone)
+                html = html.replace('{{email}}', variablemail)
+                html = html.replace('{{ville}}', ville)
+                html = html.replace('{{datedecreation}}', datedecreation)
+                html = html.replace('{{region}}', region)
+                html = html.replace('{{enzo_parreira}}', enzo_parreira)
+                html = html.replace('{{logo_url}}', logo_url)
+                # Remplacement des valeurs fixes si les balises ne sont pas présentes
+                html = html.replace('25 Chem. des Prés, 91480 Quincy-sous-Sénart', variableadressecomplete)
+                html = html.replace('Td.couverture.idf@gmail.com', variablemail)
+                html = html.replace('0664684699', variabletelephone)
+                html = html.replace('Quincy-Sous-Sénart', ville)
+                html = html.replace('2016', datedecreation)
+                html = html.replace("l'Essonne", region)
+                html = html.replace('Copyright © 2024 GMB CORP', enzo_parreira)
+                html = html.replace('https://demestre-couverture-quincy.fr/wp-content/uploads/2025/04/ChatGPT_Image_12_avr._2025_a_00_31_46-removebg-preview.png', logo_url)
+                html = html.replace('https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg', logo_url)
             st.subheader("HTML généré (debug) :")
             st.text_area("Code HTML généré", html, height=200)
             if not html.strip():
