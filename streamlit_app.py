@@ -719,8 +719,6 @@ elif page == "Générateur de site":
         ville = st.text_input("Ville")
         datedecreation = st.text_input("Date de création")
         region = st.text_input("Région")
-        enzo_parreira = st.text_input("Copyright / Nom de l'auteur")
-        logo_url = st.text_input("URL du logo")
         submitted = st.form_submit_button("Prévisualiser")
         
     if submitted and template_choice:
@@ -744,8 +742,6 @@ elif page == "Générateur de site":
                     '{{ville}}': ville,
                     '{{datedecreation}}': datedecreation,
                     '{{region}}': region,
-                    '{{enzo_parreira}}': enzo_parreira,
-                    '{{logo_url}}': logo_url,
                     
                     # Valeurs fixes à remplacer
                     '25 Chem. des Prés, 91480 Quincy-sous-Sénart': variableadressecomplete,
@@ -754,9 +750,9 @@ elif page == "Générateur de site":
                     'Quincy-Sous-Sénart': ville,
                     '2016': datedecreation,
                     "l'Essonne": region,
-                    'Copyright © 2024 GMB CORP': enzo_parreira,
-                    'https://demestre-couverture-quincy.fr/wp-content/uploads/2025/04/ChatGPT_Image_12_avr._2025_a_00_31_46-removebg-preview.png': logo_url,
-                    'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg': logo_url
+                    'Copyright © 2024 GMB CORP': 'Enzo Parreira',
+                    'https://demestre-couverture-quincy.fr/wp-content/uploads/2025/04/ChatGPT_Image_12_avr._2025_a_00_31_46-removebg-preview.png': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg',
+                    'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg'
                 }
                 
                 # Application des remplacements
