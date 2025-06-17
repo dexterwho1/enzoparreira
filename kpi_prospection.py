@@ -105,14 +105,6 @@ try:
     col4.metric("Refus", nb_refus)
     st.metric("Ratio (R1 + À rappeller) / Appels", f"{ratio_r1:.2%}")
 
-    # --- Comparaison R1 vs À rappeller ---
-    st.subheader("Comparaison R1 / À rappeller")
-    comp_df = pd.DataFrame({
-        'Type': ['R1', 'À rappeller'],
-        'Nombre': [nb_r1, nb_a_rappeller]
-    })
-    st.bar_chart(comp_df.set_index('Type'))
-
     # --- Section KPI ---
     st.subheader("KPI Prospection")
     st.write(pd.DataFrame([kpi_data], index=["Appels passés"]))
@@ -136,11 +128,21 @@ try:
     st.metric("Ratio Appels/Clients", ratio)
 
     # --- Affichage des clients signés (même hors prospects) ---
-    st.subheader("Clients signés (tous)")
-    if not clients.empty:
-        st.dataframe(clients[['name','phone','address','date_conversion']])
-    else:
-        st.info("Aucun client signé.")
+    # (SUPPRIMÉ à la demande de l'utilisateur)
+    # st.subheader("Clients signés (tous)")
+    # if not clients.empty:
+    #     st.dataframe(clients[['name','phone','address','date_conversion']])
+    # else:
+    #     st.info("Aucun client signé.")
+
+    # --- Comparaison R1 vs À rappeller ---
+    # (SUPPRIMÉ à la demande de l'utilisateur)
+    # st.subheader("Comparaison R1 / À rappeller")
+    # comp_df = pd.DataFrame({
+    #     'Type': ['R1', 'À rappeller'],
+    #     'Nombre': [nb_r1, nb_a_rappeller]
+    # })
+    # st.bar_chart(comp_df.set_index('Type'))
 
     # --- Funnel de vente ---
     st.subheader("Funnel de vente (statut d'appel)")
