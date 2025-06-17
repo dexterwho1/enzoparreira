@@ -14,6 +14,7 @@ try:
         histo = pd.read_sql_query("SELECT * FROM historique_statuts", conn)
         prospects = pd.read_sql_query("SELECT * FROM prospects", conn)
         clients = pd.read_sql_query("SELECT * FROM clients", conn)
+        taches = pd.read_sql_query("SELECT * FROM taches", conn)
 
     # --- Préparation des données ---
     # Dernier statut par prospect (y compris ceux devenus clients)
@@ -79,6 +80,30 @@ try:
     # --- Ratio appels/clients ---
     def safe_ratio(a, b):
         return f"{a/b:.1f}" if b else "∞"
+
+    # --- NOUVEAU : Ratio Appel/R1 (et à rappeller) ---
+    # On exclut les statuts "n'a pas répondu" pour le dénominateur
+    if not taches.empty:
+        # On considère comme "appel" toute tâche dont type_tache est 'tache', 'r1', 'à rappeller', 'pas intérréssé'
+        appels_total = taches[~taches['type_tache'].isin([None, "", "n'a pas répondu"])]
+        # Exclure explicitement "n'a pas répondu" si jamais il existe dans type_tache
+        appels_total = appels_total[appels_total['type_tache'] != "n'a pas répondu"]
+        nb_appels = appels_total.shape[0]
+        nb_r1 = appels_total[appels_total['type_tache'] == 'r1'].shape[0]
+        nb_a_rappeller = appels_total[appels_total['type_tache'] == 'à rappeller'].shape[0]
+        nb_refus = appels_total[appels_total['type_tache'] == 'pas intérréssé'].shape[0]
+        ratio_r1 = (nb_r1 + nb_a_rappeller) / nb_appels if nb_appels else 0
+    else:
+        nb_appels = nb_r1 = nb_a_rappeller = nb_refus = 0
+        ratio_r1 = 0
+
+    st.subheader("Indicateurs d'appels (tâches)")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Appels total", nb_appels)
+    col2.metric("R1", nb_r1)
+    col3.metric("À rappeller", nb_a_rappeller)
+    col4.metric("Refus", nb_refus)
+    st.metric("Ratio (R1 + À rappeller) / Appels", f"{ratio_r1:.2%}")
 
     # --- Section KPI ---
     st.subheader("KPI Prospection")
