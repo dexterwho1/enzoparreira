@@ -117,11 +117,7 @@ try:
     st.subheader("KPI Prospection")
     st.write(pd.DataFrame([kpi_data], index=["Appels passés"]))
     st.write(pd.DataFrame([clients_data], index=["Clients (transformés)"]))
-    ratio = safe_ratio(sum(kpi_data.values()), sum(clients_data.values()))
-    st.metric("Ratio Appels/Clients", ratio)
-
-    # --- Comparatif R1 / À rappeller par période ---
-    st.subheader("Comparatif R1 / À rappeller par période")
+    # --- Nouveau : tableau R1 et À rappeller par période ---
     def count_type_periode(type_tache, start, end):
         if taches.empty:
             return 0
@@ -132,6 +128,15 @@ try:
             & (taches['date_debut_dt'].dt.date <= end)
         )
         return taches[mask].shape[0]
+    r1_data = {p: count_type_periode('r1', *d) for p, d in periods.items()}
+    rappeller_data = {p: count_type_periode('à rappeller', *d) for p, d in periods.items()}
+    st.write(pd.DataFrame([r1_data], index=["R1"]))
+    st.write(pd.DataFrame([rappeller_data], index=["À rappeller"]))
+    ratio = safe_ratio(sum(kpi_data.values()), sum(clients_data.values()))
+    st.metric("Ratio Appels/Clients", ratio)
+
+    # --- Comparatif R1 / À rappeller par période ---
+    st.subheader("Comparatif R1 / À rappeller par période")
     comp_period = {
         p: {
             'R1': count_type_periode('r1', *d),
