@@ -742,7 +742,6 @@ elif page == "Générateur de site":
                     '{{ville}}': ville,
                     '{{datedecreation}}': datedecreation,
                     '{{region}}': region,
-                    
                     # Valeurs fixes à remplacer
                     '25 Chem. des Prés, 91480 Quincy-sous-Sénart': variableadressecomplete,
                     'Td.couverture.idf@gmail.com': variablemail,
@@ -752,12 +751,13 @@ elif page == "Générateur de site":
                     "l'Essonne": region,
                     'Copyright © 2024 GMB CORP': 'Enzo Parreira',
                     'https://demestre-couverture-quincy.fr/wp-content/uploads/2025/04/ChatGPT_Image_12_avr._2025_a_00_31_46-removebg-preview.png': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg',
-                    'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg'
+                    'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg',
+                    'https://demestre-couverture-quincy.fr/wp-content/uploads/2025/04/c19e648d-e095-4597-b376-ea9441f20565-removebg-preview.png': 'https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg',
                 }
-                
-                # Application des remplacements
                 for old, new in replacements.items():
                     html = html.replace(old, new)
+                # Forcer la largeur à 80px sur la balise <img> du logo
+                html = html.replace('<img src="https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg"', '<img src="https://cdn.prod.website-files.com/683bad57cdebe0a37a9c74a1/683bad57cdebe0a37a9c7556_Logo.svg" style="width:80px;"')
                 
             st.subheader("HTML généré (debug) :")
             st.text_area("Code HTML généré", html, height=200)
