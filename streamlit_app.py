@@ -72,6 +72,23 @@ def init_db():
         date_changement TEXT,
         FOREIGN KEY (place_id) REFERENCES prospects (place_id)
     )''')
+    # Table des tâches (ajoutée pour éviter l'erreur SQL)
+    c.execute('''CREATE TABLE IF NOT EXISTS taches (
+        tache_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER,
+        commande_id INTEGER,
+        type_tache TEXT,
+        titre TEXT,
+        description TEXT,
+        date_debut DATETIME,
+        date_fin DATETIME,
+        temps_passe FLOAT,
+        statut TEXT DEFAULT 'à faire',
+        est_process BOOLEAN DEFAULT 0,
+        service TEXT,
+        FOREIGN KEY(client_id) REFERENCES clients(client_id),
+        FOREIGN KEY(commande_id) REFERENCES commandes(commande_id)
+    )''')
     
     # Ajouter la colonne nom_service si elle n'existe pas
     try:
