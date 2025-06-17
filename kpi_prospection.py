@@ -120,6 +120,28 @@ try:
     ratio = safe_ratio(sum(kpi_data.values()), sum(clients_data.values()))
     st.metric("Ratio Appels/Clients", ratio)
 
+    # --- Comparatif R1 / À rappeller par période ---
+    st.subheader("Comparatif R1 / À rappeller par période")
+    def count_type_periode(type_tache, start, end):
+        if taches.empty:
+            return 0
+        taches['date_debut_dt'] = pd.to_datetime(taches['date_debut'], errors='coerce')
+        mask = (
+            (taches['type_tache'] == type_tache)
+            & (taches['date_debut_dt'].dt.date >= start)
+            & (taches['date_debut_dt'].dt.date <= end)
+        )
+        return taches[mask].shape[0]
+    comp_period = {
+        p: {
+            'R1': count_type_periode('r1', *d),
+            'À rappeller': count_type_periode('à rappeller', *d)
+        }
+        for p, d in periods.items()
+    }
+    comp_df = pd.DataFrame(comp_period).T
+    st.table(comp_df)
+
     # --- Affichage des clients signés (même hors prospects) ---
     st.subheader("Clients signés (tous)")
     if not clients.empty:
