@@ -135,18 +135,6 @@ try:
     ratio = safe_ratio(sum(kpi_data.values()), sum(clients_data.values()))
     st.metric("Ratio Appels/Clients", ratio)
 
-    # --- Comparatif R1 / À rappeller par période ---
-    st.subheader("Comparatif R1 / À rappeller par période")
-    comp_period = {
-        p: {
-            'R1': count_type_periode('r1', *d),
-            'À rappeller': count_type_periode('à rappeller', *d)
-        }
-        for p, d in periods.items()
-    }
-    comp_df = pd.DataFrame(comp_period).T
-    st.table(comp_df)
-
     # --- Affichage des clients signés (même hors prospects) ---
     st.subheader("Clients signés (tous)")
     if not clients.empty:
